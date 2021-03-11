@@ -1,0 +1,42 @@
+{
+	"manifest_version": 2,
+	"name": "hs_spider_ext",
+	"version": "1.0.0",
+	"description": "HSReplay页面解析",
+	"icons":
+	{
+		"16": "img/icon.png",
+		"48": "img/icon.png",
+		"128": "img/icon.png"
+	},
+	"background":
+	{
+		"scripts": ["js/background.js", "js/config.js", "js/iFanr.js", "js/http.js", "js/utils.js"]
+	},
+	"browser_action": 
+	{
+		"default_icon": "img/icon.png",
+		"default_title": "HSReplay爬虫插件demo",
+		"default_popup": "html/popup.html"
+	},
+	"content_scripts": 
+	[
+		{
+			"matches": ["<all_urls>"],
+			"js": ["js/jquery-1.8.3.js", "js/content-script.js", "js/config.js", "js/utils.js", "js/iFanr.js"],
+			"run_at": "document_start"
+		}
+	],
+	"permissions":
+	[
+		"cookies",
+		"contextMenus", 
+		"tabs", 
+		"notifications", 
+		"webRequest", 
+		"webRequestBlocking",
+		"storage", 
+		"http://*/*", 
+		"https://*/*" 
+	]
+}
