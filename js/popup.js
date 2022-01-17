@@ -1,7 +1,14 @@
 var time_frame = ''
-if (localStorage['time_frame']=='LAST_7_DAYS') {
-    $('input[name="time_frame"]').attr('checked', 'true')
-    time_frame = 'LAST_7_DAYS'
+var time_range_array = ['', 'LAST_7_DAYS', 'LAST_30_DAYS', 'CURRENT_EXPANSION', 'CURRENT_PATCH']
+// if (localStorage['time_frame']=='LAST_7_DAYS') {
+//     $('input[name="time_frame"]').attr('checked', 'true')
+//     time_frame = 'LAST_7_DAYS'
+// }
+for (let i in time_range_array) {
+    if (localStorage['time_frame'] == time_range_array[i]) {
+        let objs = $('input[name="time_range"]')
+        objs[i].setAttribute('checked', true)
+    }
 }
 
 $('#open_trending').click(() => {
@@ -19,24 +26,45 @@ var deck_start_page=0
 var deck_end_page=1
 var current_page=0
 var rank_mode = 'Standard'
+var deck_rank_range = 'DIAMOND_THROUGH_LEGEND'
 // var decks_page_base_url = 'https://hsreplay.net/decks/#rankRange=DIAMOND_THROUGH_LEGEND&timeRange=LAST_7_DAYS'
-var default_decks_url = 'https://hsreplay.net/decks/#rankRange=DIAMOND_THROUGH_LEGEND'
+var default_decks_url = 'https://hsreplay.net/decks/'
 // var decks_page_base_url = 'https://hsreplay.net/decks/#rankRange=DIAMOND_THROUGH_LEGEND&includedCards=61503'
 $('#open_deck').click(() => {
     console.log('打开卡组页面')
-    var objs = $("input[name='deck-mode']")
-    var rank_mode = 'Standard'
-    if (localStorage['time_frame']=='LAST_7_DAYS') {
-        decks_page_base_url = default_decks_url + '&timeRange=LAST_7_DAYS'
-    } else {
-        decks_page_base_url = default_decks_url
+
+    var objs1 = $("input[name='deck_rank_range']")
+    for (let i in objs1) {
+        if (objs1[i].checked) {
+            deck_rank_range = objs1[i].value
+        }
     }
-    if (objs[1].checked) {
+    decks_page_base_url = default_decks_url + '#rankRange=' + deck_rank_range
+
+    if (localStorage['time_frame']=='LAST_7_DAYS') {
+        decks_page_base_url = decks_page_base_url + '&timeRange=LAST_7_DAYS'
+    } else if (localStorage['time_frame']=='CURRENT_EXPANSION') {
+        decks_page_base_url = decks_page_base_url + '&timeRange=CURRENT_EXPANSION'
+    } else if (localStorage['time_frame']=='LAST_30_DAYS') {
+        decks_page_base_url = decks_page_base_url + '&timeRange=LAST_30_DAYS'
+    } else if (localStorage['time_frame']=='CURRENT_PATCH') {
+        decks_page_base_url = decks_page_base_url + '&timeRange=CURRENT_PATCH'
+    }
+
+    var objs2 = $("input[name='deck-mode']")
+    if (objs2[1].checked) {
         rank_mode = 'Wild'
         decks_page_base_url = decks_page_base_url+'&gameType=RANKED_WILD&wildCard=yes'
+    } else if (objs2[2].checked) {
+        rank_mode = 'Classic'
+        decks_page_base_url = decks_page_base_url+'&gameType=RANKED_CLASSIC'
+    } else {
+        rank_mode = 'Standard'
     }
+
     deck_start_page = $('#start_page').val()
     deck_end_page = $('#end_page').val()
+
     var url = decks_page_base_url
     if (deck_start_page > 1) {
         url = decks_page_base_url+'&page='+deck_start_page
@@ -48,17 +76,36 @@ $('#open_deck').click(() => {
 })
 
 $('#analysis_deck_page').click(() => {
-    var objs = $("input[name='deck-mode']")
-    rank_mode = 'Standard'
-    if (localStorage['time_frame']=='LAST_7_DAYS') {
-        decks_page_base_url = default_decks_url + '&timeRange=LAST_7_DAYS'
-    } else {
-        decks_page_base_url = default_decks_url
+    var objs1 = $("input[name='deck_rank_range']")
+    for (let i in objs1) {
+        if (objs1[i].checked) {
+            deck_rank_range = objs1[i].value
+        }
     }
-    if (objs[1].checked) {
+    decks_page_base_url = default_decks_url + '#rankRange=' + deck_rank_range
+
+ 
+    if (localStorage['time_frame']=='LAST_7_DAYS') {
+        decks_page_base_url = decks_page_base_url + '&timeRange=LAST_7_DAYS'
+    } else if (localStorage['time_frame']=='CURRENT_EXPANSION') {
+        decks_page_base_url = decks_page_base_url + '&timeRange=CURRENT_EXPANSION'
+    } else if (localStorage['time_frame']=='LAST_30_DAYS') {
+        decks_page_base_url = decks_page_base_url + '&timeRange=LAST_30_DAYS'
+    } else if (localStorage['time_frame']=='CURRENT_PATCH') {
+        decks_page_base_url = decks_page_base_url + '&timeRange=CURRENT_PATCH'
+    }
+
+    var objs2 = $("input[name='deck-mode']")
+    if (objs2[1].checked) {
         rank_mode = 'Wild'
         decks_page_base_url = decks_page_base_url+'&gameType=RANKED_WILD&wildCard=yes'
+    } else if (objs2[2].checked) {
+        rank_mode = 'Classic'
+        decks_page_base_url = decks_page_base_url+'&gameType=RANKED_CLASSIC'
+    } else {
+        rank_mode = 'Standard'
     }
+
     deck_start_page = $('#start_page').val()?$('#start_page').val():deck_start_page
     deck_end_page = $('#end_page').val()?$('#end_page').val():deck_end_page
     current_page = parseInt(deck_start_page)
@@ -84,7 +131,7 @@ $('#open_winrate').click(() => {
     getCurrentTabId(tabId => {
         var base_url = 'https://hsreplay.net/meta/'
         var hash = ''
-        if (time_frame) {
+        if (time_frame && time_frame !== 'NONE') {
             hash +='#timeFrame='+time_frame
         }
         if (rank_range_array.length) {
@@ -451,8 +498,12 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
             var mode = 'RANKED_STANDARD'
             if (rank_mode == 'Wild') {
                 mode = 'RANKED_WILD'
+            } else if (rank_mode == 'Classic') {
+                mode = 'RANKED_CLASSIC'
             }
-            var url = 'https://hsreplay.net/analytics/query/single_deck_mulligan_guide_v2/?GameType='+mode+'&LeagueRankRange=DIAMOND_THROUGH_LEGEND&Region=ALL&PlayerInitiative=ALL&deck_id='+request.payload.deck_id
+            var time_range_str = localStorage['time_frame'] == 'CURRENT_PATCH'?'&TimeRange='+localStorage['time_frame']:''
+            time_range_str = localStorage['time_frame'] == 'CURRENT_EXPANSION'?'&TimeRange='+localStorage['time_frame']:time_range_str
+            var url = 'https://hsreplay.net/analytics/query/single_deck_mulligan_guide_v2/?GameType='+mode+'&LeagueRankRange='+deck_rank_range+'&Region=ALL&PlayerInitiative=ALL&deck_id='+request.payload.deck_id+time_range_str
             console.log('准备打开mulligan页面', url)
             getCurrentTabId(tabId => {
                 console.log('打开mulligan页:', tabId, request)
@@ -473,7 +524,8 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
                         var item = faction_list[i]
                         if (!item.checked && item.href!='') {
                             var url = 'https://hsreplay.net'+item.href+'#rankRange=DIAMOND_THROUGH_LEGEND'
-                            console.log('准备打开archetype页面', url)
+                            // var url = 'https://hsreplay.net'+item.href+'#rankRange=BRONZE_THROUGH_GOLD'
+                            console.log('准备打开archetype页面aa', url)
                             var archetype_name = item.href.split('/')
                             archetype_name = archetype_name[archetype_name.length-1]
                             $('#meta_info').text('解析卡组模板（青铜-黄金）：'+(i+1)+'/'+faction_list.length+' '+archetype_name)
@@ -565,7 +617,12 @@ $('#clear_cache').click(() => {
     bg.clearAllCache()
 })
 
-$('input[name="time_frame"]').click(() => {
-    time_frame = $('input[name="time_frame"]').is(":checked")?'LAST_7_DAYS':''
-    localStorage['time_frame']=time_frame
+$('input[name="time_range"]').click(() => {
+    var objs = $("input[name='time_range']")
+    console.log('aaa', objs, objs[0].checked, objs[1].checked, objs[2].checked, objs[2].value)
+    for (let i in objs) {
+        if (objs[i].checked) {
+            localStorage['time_frame']=time_range_array[i]
+        }
+    }
 })

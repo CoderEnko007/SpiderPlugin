@@ -29,9 +29,12 @@
     <h1>HSReplay页面解析</h1>
     <div class="flex-checkbox">
         <button id='clear_cache'>清除缓存</button>
-        <div>
-            <input type="checkbox" name="time_frame">
-            <span>最近7天</span>
+        <div id="time-frame">
+            <input type="radio" name='time_range' value='NONE' checked>默认
+            <input type="radio" name='time_range' value='LAST_7_DAYS'>最近7天
+            <input type="radio" name='time_range' value='LAST_30_DAYS'>最近30天
+            <input type="radio" name='time_range' value='CURRENT_EXPANSION'>当前版本
+            <input type="radio" name='time_range' value='CURRENT_PATCH'>当前补丁
         </div>
     </div>
     <h2>职业胜率排名</h2>
@@ -53,6 +56,14 @@
     </div>
     <h2>Deck页面</h2>
     <div style="margin-bottom: 12px;">
+        <h3>分段</h3>
+        <div id="deck_rank_range" style="margin-bottom: 12px;">
+            <input type="radio" name="deck_rank_range" id="BRONZE_THROUGH_GOLD" value="BRONZE_THROUGH_GOLD">青铜-黄金
+            <input type="radio" name="deck_rank_range" id="DIAMOND_FOUR_THROUGH_DIAMOND_ONE" value="DIAMOND_FOUR_THROUGH_DIAMOND_ONE">钻石4-钻石1
+            <input type="radio" name="deck_rank_range" checked ='checked' id="DIAMOND_THROUGH_LEGEND" value="DIAMOND_THROUGH_LEGEND">钻石-传说
+            <input type="radio" name="deck_rank_range" id="LEGEND" value="LEGEND">传说
+            <input type="radio" name="deck_rank_range" id="TOP_1000_LEGEND" value="TOP_1000_LEGEND">传说Top1000
+        </div>  
         <div style="margin-bottom: 12px;">
             <input type="number" id="start_page" placeholder="起始页" name="start">
             <input type="number" id="end_page" placeholder="结束页" name="end">
@@ -60,6 +71,7 @@
         <div id="deck-mode">
             <input type="radio" name='deck-mode' value='Standard' checked>标准模式
             <input type="radio" name='deck-mode' value='Wild'>狂野模式
+            <input type="radio" name='deck-mode' value='Classic'>经典模式
         </div>
         <div class="button-group">
             <button id="open_deck">打开Deck页面</button>

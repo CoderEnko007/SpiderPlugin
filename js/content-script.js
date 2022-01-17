@@ -21,9 +21,10 @@ document.addEventListener('DOMContentLoaded', async function() {
             var overview_block = document.querySelectorAll('table.table-striped tbody tr')
             var deck_name = document.querySelector('.archetype-image-container h1')
             var wild_flag = hash.indexOf('RANKED_WILD')>0
+            var classic_flag = hash.indexOf('RANKED_CLASSIC')>0
             timer_times += 1
-            console.log('debug:', wild_flag, deck_name||wild_flag, overview_block.length&&(deck_name||wild_flag))
-            if ((overview_block.length&&(deck_name||wild_flag)) || timer_times >= 15) {
+            console.log('debug:', wild_flag, deck_name||wild_flag||classic_flag, overview_block.length&&(deck_name||wild_flag))
+            if ((overview_block.length&&(deck_name||wild_flag||classic_flag)) || timer_times >= 15) {
                 clearInterval(timer)
                 var deck_id = location.pathname.match(/\/.*\/(.*)\//)[1]
 
@@ -49,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 for(var item of card_list_items) {
                     var card_cost = parseInt(item.querySelector('span.card-cost').textContent)
                     var card_asset = item.querySelector('div.card-frame img.card-asset').getAttribute('src')
-                    var card_hsid = card_asset.match(/.*\/(.*).png$/)[1]
+                    var card_hsid = card_asset.match(/.*\/(.*)\.[a-zA-Z]*$/)[1]
                     var card_count_cell = item.querySelector('.card-count')
                     var card_count = card_count_cell?card_count_cell.textContent:1
                     card_count = isNaN(card_count)?1:parseInt(card_count)
@@ -104,7 +105,13 @@ document.addEventListener('DOMContentLoaded', async function() {
 
                 var mulligan_block = document.querySelector('#tab-mulligan-guide')
                 var mulligan_flag = mulligan_block?true:false
-                var rank_mode = hash.indexOf('RANKED_WILD')>=0?'Wild':'Standard'
+                // var rank_mode = hash.indexOf('RANKED_WILD')>=0?'Wild':'Standard'
+                var rank_mode = 'Standard'
+                if (hash.indexOf('RANKED_WILD')>=0) {
+                    rank_mode = 'Wild'
+                } else if (hash.indexOf('RANKED_CLASSIC')>=0) {
+                    rank_mode = 'Classic'
+                }
                 var deck = {
                     deck_id: deck_id,
                     deck_name: deck_name,
@@ -143,7 +150,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.log('定时器次数：', timer_times, deck)
         }, 2000)
     } else if (pathname === '/analytics/query/single_deck_mulligan_guide_v2/') {
-        var deck_id = href.match(/.*deck_id=(.*)$/)[1]
+        var deck_id = href.match(/.*deck_id=([0-9A-Za-z]*).*$/)[1]
+        console.log('mulligan_guide deck_id:', deck_id)
         var mulligan_block = document.querySelector('pre')
         var mulligan = []
         if (mulligan_block) {
@@ -277,7 +285,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     card_name = item.querySelector('.card-name').textContent
                     card_cost = item.querySelector('.card-cost').textContent
                     card_assert = item.querySelector('img.card-asset').getAttribute('src')
-                    card_hsid = card_assert.match(/.*\/(.*).png$/)[1]
+                    card_hsid = card_assert.match(/.*\/(.*)\.[a-zA-Z]*$/)[1]
                     core_cards.push({'name': card_name, 'cost': card_cost, 'card_hsid': card_hsid})
                 }
                 archetype['core_cards'] = core_cards
@@ -288,7 +296,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     card_name = item.querySelector('.card-name').textContent
                     card_cost = item.querySelector('.card-cost').textContent
                     card_assert = item.querySelector('img.card-asset').getAttribute('src')
-                    card_hsid = card_assert.match(/.*\/(.*).png$/)[1]
+                    card_hsid = card_assert.match(/.*\/(.*)\.[a-zA-Z]*$/)[1]
                     pop_cards.push({'name': card_name, 'cost': card_cost, 'card_hsid': card_hsid})
                 }
                 archetype['pop_cards'] = pop_cards
@@ -339,7 +347,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         sendMessageToBackground({msg: BG_MSG_ID.MSG_META_PAGE_LOADED, payload: null})
     } else if (current_mode.payload == MODE_ID.MODE_RANK) {
         // var game_type = {'Standard': 2, 'Wild': 30, 'Arena': 3}
-        var game_type = [{name: 'Standard', value: 2}, {name: 'Wild', value: 30}, {name: 'Arena', value: 3}, {name: 'Duels', value: 55}]
+        var game_type = [{name: 'Standard', value: 2}, {name: 'Wild', value: 30}, 
+                         {name: 'Arena', value: 3}, {name: 'Duels', value: 55}, {name: 'Classic', value: 58}]
         var json_str = document.querySelector('pre').textContent
         var json_data = JSON.parse(json_str).series.data
         console.log('aaa', json_data)
