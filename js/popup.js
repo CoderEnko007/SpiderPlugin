@@ -27,9 +27,29 @@ var deck_end_page=1
 var current_page=0
 var rank_mode = 'Standard'
 var deck_rank_range = 'DIAMOND_THROUGH_LEGEND'
+// var deck_rank_range = 'BRONZE_THROUGH_GOLD'
 // var decks_page_base_url = 'https://hsreplay.net/decks/#rankRange=DIAMOND_THROUGH_LEGEND&timeRange=LAST_7_DAYS'
 var default_decks_url = 'https://hsreplay.net/decks/'
 // var decks_page_base_url = 'https://hsreplay.net/decks/#rankRange=DIAMOND_THROUGH_LEGEND&includedCards=61503'
+var include_cards_array = []
+$('#add_include_cards').click(() => {
+    cards_list_str = $('#include_cards_id').val().trim()
+    console.log('aaa', cards_list_str)
+    var reg = /^(\d+$)|((\d+\s+)+\d+)$/
+    if (reg.test(cards_list_str) == false) {
+        alert('请输入正确的卡牌id！')
+    }
+    include_cards_array = cards_list_str.trim().split(' ').map(Number)
+    console.log('bbb', include_cards_array)
+    $('#include_cards_list').text(include_cards_array.join(', '))
+})
+
+$('#clear_include_cards').click(() => {
+    $('#include_cards_id').val("")
+    include_cards_array = []
+    $('#include_cards_list').text("无")
+})
+
 $('#open_deck').click(() => {
     console.log('打开卡组页面')
 
@@ -62,14 +82,21 @@ $('#open_deck').click(() => {
         rank_mode = 'Standard'
     }
 
+    console.log('ddd1', include_cards_array, include_cards_array.length)
+    if (include_cards_array.length>0) {
+        var include_cards_array_str = include_cards_array.length>1?include_cards_array.join('%2C'):include_cards_array[0]
+        decks_page_base_url = decks_page_base_url+'&includedCards='+include_cards_array_str
+    }
+
     deck_start_page = $('#start_page').val()
     deck_end_page = $('#end_page').val()
 
     var url = decks_page_base_url
     if (deck_start_page > 1) {
         url = decks_page_base_url+'&page='+deck_start_page
-    }
-    
+    }    
+    console.log('ccc', url)
+
     getCurrentTabId(tabId => {
         chrome.tabs.update(tabId, {url: url})
     })
@@ -104,6 +131,12 @@ $('#analysis_deck_page').click(() => {
         decks_page_base_url = decks_page_base_url+'&gameType=RANKED_CLASSIC'
     } else {
         rank_mode = 'Standard'
+    }
+
+    console.log('ddd2', include_cards_array, include_cards_array.length)
+    if (include_cards_array.length>0) {
+        var include_cards_array_str = include_cards_array.length>1?include_cards_array.join('%2C'):include_cards_array[0]
+        decks_page_base_url = decks_page_base_url+'&includedCards='+include_cards_array_str
     }
 
     deck_start_page = $('#start_page').val()?$('#start_page').val():deck_start_page
@@ -503,8 +536,9 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
             }
             var time_range_str = localStorage['time_frame'] == 'CURRENT_PATCH'?'&TimeRange='+localStorage['time_frame']:''
             time_range_str = localStorage['time_frame'] == 'CURRENT_EXPANSION'?'&TimeRange='+localStorage['time_frame']:time_range_str
+            // deck_rank_range = 'BRONZE_THROUGH_GOLD'
             var url = 'https://hsreplay.net/analytics/query/single_deck_mulligan_guide_v2/?GameType='+mode+'&LeagueRankRange='+deck_rank_range+'&Region=ALL&PlayerInitiative=ALL&deck_id='+request.payload.deck_id+time_range_str
-            console.log('准备打开mulligan页面', url)
+            console.log('yf--------------------准备打开mulligan页面', url)
             getCurrentTabId(tabId => {
                 console.log('打开mulligan页:', tabId, request)
                 chrome.tabs.update(tabId, {url: url})
@@ -523,6 +557,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
                     for (var i=0; i<faction_list.length; i++) {
                         var item = faction_list[i]
                         if (!item.checked && item.href!='') {
+                            // meta卡组模板使用钻石-传说分段或者青铜-黄金分段，版本初期因数据不足需要切换为低分段
                             var url = 'https://hsreplay.net'+item.href+'#rankRange=DIAMOND_THROUGH_LEGEND'
                             // var url = 'https://hsreplay.net'+item.href+'#rankRange=BRONZE_THROUGH_GOLD'
                             console.log('准备打开archetype页面aa', url)

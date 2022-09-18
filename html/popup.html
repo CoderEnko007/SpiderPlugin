@@ -73,11 +73,26 @@
             <input type="radio" name='deck-mode' value='Wild'>狂野模式
             <input type="radio" name='deck-mode' value='Classic'>经典模式
         </div>
-        <div class="button-group">
-            <button id="open_deck">打开Deck页面</button>
-            <button id="analysis_deck_page">解析页面</button>
+    </div>
+    <div style="margin-bottom: 12px;">
+        <h3>包含卡牌</h3>
+        <div style="margin-bottom: 12px;">
+            <input type="text" id="include_cards_id" placeholder="输入卡牌ID（多张卡牌请用空格分开）" name="include_cards" style="width: 250px;">
+            <div style="display: inline-block; margin-left: 12px; margin-left: 20px;">
+                <button id="add_include_cards">添加</button>
+                <button id="clear_include_cards">清空</button>
+            </div>
+        </div>
+        <div>
+            <span>包含卡牌：</span>
+            <span id="include_cards_list" style="width: 70%; min-height: 20px;">无</span>
         </div>
     </div>
+    <div class="button-group">
+        <button id="open_deck">打开Deck页面</button>
+        <button id="analysis_deck_page">解析页面</button>
+    </div>
+    
     <div>
         <span>同步信息：</span>
         <span id="deck_info" style="width: 70%; min-height: 20px;">无</span>
