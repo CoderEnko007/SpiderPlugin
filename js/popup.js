@@ -1,15 +1,23 @@
 var time_frame = ''
-var time_range_array = ['', 'LAST_7_DAYS', 'LAST_30_DAYS', 'CURRENT_EXPANSION', 'CURRENT_PATCH']
-// if (localStorage['time_frame']=='LAST_7_DAYS') {
-//     $('input[name="time_frame"]').attr('checked', 'true')
-//     time_frame = 'LAST_7_DAYS'
-// }
-for (let i in time_range_array) {
-    if (localStorage['time_frame'] == time_range_array[i]) {
-        let objs = $('input[name="time_range"]')
-        objs[i].setAttribute('checked', true)
+var time_range_array = ['', 'LAST_1_DAY', 'LAST_3_DAYS', 'LAST_7_DAYS', 'LAST_30_DAYS', 'CURRENT_EXPANSION', 'CURRENT_PATCH', 'CURRENT_SEASON']
+
+document.addEventListener('DOMContentLoaded', function() {
+    for (let i in time_range_array) {
+        if (localStorage['time_frame'] == time_range_array[i]) {
+            let objs = $('input[name="time_range"]')
+            objs[i].setAttribute('checked', true)
+        }
     }
-}
+    // 获取 singleServerModeSwitch 元素
+    const singleServerModeSwitch = $('input[name="singleServerMode"]')[0];
+    // 获取 localStorage 中的 singleServerMode 值
+    const singleServerModeValue = localStorage['singleServerMode'];
+    if (singleServerModeValue === 'true') {
+        singleServerModeSwitch.checked = true;
+    } else {
+        singleServerModeSwitch.checked = false;
+    }
+});
 
 $('#open_trending').click(() => {
     console.log('打开趋势页面')
@@ -23,14 +31,16 @@ $('#analysis_trending_page').click(() => {
 })
 
 var deck_start_page=0
-var deck_end_page=1
+var deck_end_page=-1
 var current_page=0
 var rank_mode = 'Standard'
 var deck_rank_range = 'DIAMOND_THROUGH_LEGEND'
+var decks_page_base_url = ''
 // var deck_rank_range = 'BRONZE_THROUGH_GOLD'
 // var decks_page_base_url = 'https://hsreplay.net/decks/#rankRange=DIAMOND_THROUGH_LEGEND&timeRange=LAST_7_DAYS'
 var default_decks_url = 'https://hsreplay.net/decks/'
 // var decks_page_base_url = 'https://hsreplay.net/decks/#rankRange=DIAMOND_THROUGH_LEGEND&includedCards=61503'
+var default_decks_url_v2 = 'https://hsreplay.net/analytics/query/list_decks_by_opponent_win_rate_v2/'
 var include_cards_array = []
 $('#add_include_cards').click(() => {
     cards_list_str = $('#include_cards_id').val().trim()
@@ -50,43 +60,49 @@ $('#clear_include_cards').click(() => {
     $('#include_cards_list').text("无")
 })
 
-$('#open_deck').click(() => {
-    console.log('打开卡组页面')
-
+function format_decks_page_url() {
     var objs1 = $("input[name='deck_rank_range']")
     for (let i in objs1) {
         if (objs1[i].checked) {
             deck_rank_range = objs1[i].value
         }
     }
-    decks_page_base_url = default_decks_url + '#rankRange=' + deck_rank_range
+    var temp_url = default_decks_url + '#rankRange=' + deck_rank_range
 
     if (localStorage['time_frame']=='LAST_7_DAYS') {
-        decks_page_base_url = decks_page_base_url + '&timeRange=LAST_7_DAYS'
+        temp_url = temp_url + '&timeRange=LAST_7_DAYS'
     } else if (localStorage['time_frame']=='CURRENT_EXPANSION') {
-        decks_page_base_url = decks_page_base_url + '&timeRange=CURRENT_EXPANSION'
+        temp_url = temp_url + '&timeRange=CURRENT_EXPANSION'
     } else if (localStorage['time_frame']=='LAST_30_DAYS') {
-        decks_page_base_url = decks_page_base_url + '&timeRange=LAST_30_DAYS'
+        temp_url = temp_url + '&timeRange=LAST_30_DAYS'
     } else if (localStorage['time_frame']=='CURRENT_PATCH') {
-        decks_page_base_url = decks_page_base_url + '&timeRange=CURRENT_PATCH'
+        temp_url = temp_url + '&timeRange=CURRENT_PATCH'
+    } else if (localStorage['time_frame']=='LAST_1_DAY') {
+        temp_url = temp_url + '&timeRange=LAST_1_DAY'
+    } else if (localStorage['time_frame']=='LAST_3_DAYS') {
+        temp_url = temp_url + '&timeRange=LAST_3_DAYS'
+    } else if (localStorage['time_frame']=='CURRENT_SEASON') {
+        temp_url = temp_url + '&timeRange=CURRENT_SEASON'
     }
 
     var objs2 = $("input[name='deck-mode']")
     if (objs2[1].checked) {
         rank_mode = 'Wild'
-        decks_page_base_url = decks_page_base_url+'&gameType=RANKED_WILD&wildCard=yes'
-    } else if (objs2[2].checked) {
-        rank_mode = 'Classic'
-        decks_page_base_url = decks_page_base_url+'&gameType=RANKED_CLASSIC'
+        temp_url = temp_url+'&gameType=RANKED_WILD&wildCard=yes'
     } else {
         rank_mode = 'Standard'
     }
 
-    console.log('ddd1', include_cards_array, include_cards_array.length)
     if (include_cards_array.length>0) {
         var include_cards_array_str = include_cards_array.length>1?include_cards_array.join('%2C'):include_cards_array[0]
-        decks_page_base_url = decks_page_base_url+'&includedCards='+include_cards_array_str
+        temp_url = temp_url+'&includedCards='+include_cards_array_str
     }
+
+    return temp_url
+}
+
+$('#open_deck').click(() => {
+    decks_page_base_url = format_decks_page_url()
 
     deck_start_page = $('#start_page').val()
     deck_end_page = $('#end_page').val()
@@ -103,50 +119,78 @@ $('#open_deck').click(() => {
 })
 
 $('#analysis_deck_page').click(() => {
-    var objs1 = $("input[name='deck_rank_range']")
-    for (let i in objs1) {
-        if (objs1[i].checked) {
-            deck_rank_range = objs1[i].value
-        }
-    }
-    decks_page_base_url = default_decks_url + '#rankRange=' + deck_rank_range
-
- 
-    if (localStorage['time_frame']=='LAST_7_DAYS') {
-        decks_page_base_url = decks_page_base_url + '&timeRange=LAST_7_DAYS'
-    } else if (localStorage['time_frame']=='CURRENT_EXPANSION') {
-        decks_page_base_url = decks_page_base_url + '&timeRange=CURRENT_EXPANSION'
-    } else if (localStorage['time_frame']=='LAST_30_DAYS') {
-        decks_page_base_url = decks_page_base_url + '&timeRange=LAST_30_DAYS'
-    } else if (localStorage['time_frame']=='CURRENT_PATCH') {
-        decks_page_base_url = decks_page_base_url + '&timeRange=CURRENT_PATCH'
-    }
-
-    var objs2 = $("input[name='deck-mode']")
-    if (objs2[1].checked) {
-        rank_mode = 'Wild'
-        decks_page_base_url = decks_page_base_url+'&gameType=RANKED_WILD&wildCard=yes'
-    } else if (objs2[2].checked) {
-        rank_mode = 'Classic'
-        decks_page_base_url = decks_page_base_url+'&gameType=RANKED_CLASSIC'
-    } else {
-        rank_mode = 'Standard'
-    }
-
-    console.log('ddd2', include_cards_array, include_cards_array.length)
-    if (include_cards_array.length>0) {
-        var include_cards_array_str = include_cards_array.length>1?include_cards_array.join('%2C'):include_cards_array[0]
-        decks_page_base_url = decks_page_base_url+'&includedCards='+include_cards_array_str
-    }
-
     deck_start_page = $('#start_page').val()?$('#start_page').val():deck_start_page
     deck_end_page = $('#end_page').val()?$('#end_page').val():deck_end_page
+    
     current_page = parseInt(deck_start_page)
     console.log(deck_start_page, deck_end_page)
     $('#deck_info').text('开始解析Deck页面（'+deck_start_page+'页-'+deck_end_page+'页）,当前第1页')
     sendMessageToContentScript({msg: CS_MSG_ID.MSG_ANALYSIS_DECKS_PAGE, payload: {start_page: deck_start_page, end_page: deck_end_page}})
 })
 
+$('#open_deck_v2').click(() => {    
+    var objs1 = $("input[name='deck-mode']")
+    if (objs1[1].checked) {
+        rank_mode = 'RANKED_WILD'
+        decks_page_base_url = default_decks_url_v2+'?GameType=RANKED_WILD'
+    } else if (objs1[2].checked) {
+        rank_mode = 'RANKED_TWIST'
+        decks_page_base_url = default_decks_url_v2+'?GameType=RANKED_TWIST'
+    } else {
+        rank_mode = 'RANKED_STANDARD'
+        decks_page_base_url = default_decks_url_v2+'?GameType=RANKED_STANDARD'
+    }
+
+    var objs2 = $("input[name='deck_rank_range']")
+    for (let i in objs2) {
+        if (objs2[i].checked) {
+            deck_rank_range = objs2[i].value
+        }
+    }
+    decks_page_base_url = decks_page_base_url + '&LeagueRankRange=' + deck_rank_range + '&Region=ALL' + '&PilotExperience=ALL'
+
+    if (localStorage['time_frame']=='LAST_7_DAYS') {
+        decks_page_base_url = decks_page_base_url + '&TimeRange=LAST_7_DAYS'
+    } else if (localStorage['time_frame']=='CURRENT_EXPANSION') {
+        decks_page_base_url = decks_page_base_url + '&TimeRange=CURRENT_EXPANSION'
+    } else if (localStorage['time_frame']=='LAST_30_DAYS') {
+        decks_page_base_url = decks_page_base_url + '&TimeRange=LAST_30_DAYS'
+    } else if (localStorage['time_frame']=='CURRENT_PATCH') {
+        decks_page_base_url = decks_page_base_url + '&TimeRange=CURRENT_PATCH'
+    } else if (localStorage['time_frame']=='LAST_1_DAY') {
+        decks_page_base_url = decks_page_base_url + '&TimeRange=LAST_1_DAY'
+    } else if (localStorage['time_frame']=='LAST_3_DAYS') {
+        decks_page_base_url = decks_page_base_url + '&TimeRange=LAST_3_DAYS'
+    } else if (localStorage['time_frame']=='CURRENT_SEASON') {
+        decks_page_base_url = decks_page_base_url + '&TimeRange=CURRENT_SEASON'
+    }
+
+    console.log('open_deck_v2 url:', decks_page_base_url)
+
+    getCurrentTabId(tabId => {
+        chrome.tabs.update(tabId, {url: decks_page_base_url})
+    })
+})
+
+$('#analysis_deck_page_v2').click(() => {
+    var objs1 = $("input[name='deck-mode']")
+    if (objs1[1].checked) {
+        rank_mode = 'RANKED_WILD'
+    } else if (objs1[2].checked) {
+        rank_mode = 'RANKED_TWIST'
+    } else {
+        rank_mode = 'RANKED_STANDARD'
+    }
+
+    deck_start_page = $('#start_page').val()?$('#start_page').val():deck_start_page
+    deck_end_page = $('#end_page').val()?$('#end_page').val():deck_end_page
+    
+    console.log('analysis_deck_page_v2', rank_mode, rank_range, include_cards_array)
+    // 版本初期临时调整为青铜-黄金分段
+    // deck_rank_range = 'BRONZE_THROUGH_GOLD'
+    sendMessageToContentScript({msg: CS_MSG_ID.MSG_ANALYSIS_DECKS_PAGE_V2,
+        payload: {rank_mode: rank_mode, rank_range: deck_rank_range, include_cards: include_cards_array, start_num: deck_start_page, end_num: deck_end_page}})
+})
 // var time_frame = 'LAST_7_DAYS'
 // var time_frame = ''
 // var time_frame = $('input[name="time_frame"]').is(":checked")?'LAST_7_DAYS':''
@@ -316,7 +360,7 @@ $('#open_tier_list').click(() => {
 })
 
 $('#open_rank_page').click(() => {
-    var url = 'https://hsreplay.net/analytics/query/player_class_performance_summary/'
+    var url = 'https://hsreplay.net/analytics/query/player_class_performance_summary_v2/'
     getCurrentTabId(tabId => {
         console.log('打开Rank页面')
         chrome.tabs.update(tabId, {url: url})
@@ -324,7 +368,7 @@ $('#open_rank_page').click(() => {
 })
 
 $('#analysis_rank_page').click(() => {
-    var url = 'https://hsreplay.net/analytics/query/player_class_performance_summary/'
+    var url = 'https://hsreplay.net/analytics/query/player_class_performance_summary_v2/'
     $('#rank_info').text('打开Rank页面，准备解析')
     getCurrentTabId(tabId => {
         console.log('打开Rank页面')
@@ -388,7 +432,9 @@ function getBestDeck(url) {
                     continue
                 }
                 var deck_id = best_deck[0]
-                var deck_uri = 'https://hsreplay.net/decks/'+deck_id+'/#rankRange=DIAMOND_THROUGH_LEGEND&tab=overview'
+                // 暂时改为青铜-黄金分段
+                // var deck_uri = 'https://hsreplay.net/decks/'+deck_id+'/#rankRange=BRONZE_THROUGH_GOLD&tab=overview'
+                var deck_uri = 'https://hsreplay.net/decks/'+deck_id+'/#rankRange='+deck_rank_range+'&tab=overview'
                 deck_list.push({
                     'deck_id': deck_id,
                     'faction': item['faction']['id'],
@@ -405,20 +451,59 @@ function getBestDeck(url) {
     })
 }
 
+function getiFanrBestDeck() {
+    return new Promise(async (resolve) => {
+        console.log('getiFanrBestDeck start')
+        var res = await get_meta_detail_for_best_deck()
+        var deck_list = []
+        for (var item of res.results) {
+            var best_deck = JSON.parse(item['best_deck'])
+            if (best_deck.length<=0) {
+                continue
+            }
+            var deck_id = best_deck[0]
+            // 临时改为青铜-黄金分段
+            var deck_url = 'https://hsreplay.net/decks/'+deck_id+'/#rankRange='+deck_rank_range+'&tab=overview'
+            // var deck_url = 'https://hsreplay.net/decks/'+deck_id+'/#rankRange=BRONZE_THROUGH_GOLD&tab=overview'
+            
+            deck_list.push({
+                'deck_id': deck_id,
+                'faction': item['faction'],
+                'url': deck_url,
+                'deck_name': item['archetype'],
+                'win_rate': parseFloat(best_deck[1].replace('%', '')),
+                'game_count': parseInt(best_deck[2]),
+                'handled_flag': false
+            })
+            console.log(item['faction'], item['archetype'], deck_url)
+        }
+        resolve({deck_list: deck_list})
+    })
+}
+
 var best_deck_num = 0
 var current_num = 1
 $('#update_bestdeck').click(async () => {
-    var bg = chrome.extension.getBackgroundPage();
-    var url = 'http://47.98.187.217/winrate/?rank_range=BRONZE_THROUGH_GOLD&format=json&create_time='+dateFormat("YYYY-mm-dd", new Date())
     var deck_list = []
-    $('#best_deck_info').text('开始获取需要更新的卡组(请耐心等待)...')
-    var result = await getBestDeck(url)
-    deck_list.push.apply(deck_list, result.deck_list)
-    while (result.next_url) {
-        result = await getBestDeck(result.next_url)
-        deck_list.push.apply(deck_list, result.deck_list)
+    var singleServerMode = localStorage['singleServerMode']
+    if (singleServerMode == 'true') {
+        console.log('单服务器模式')
+        var res = await getiFanrBestDeck()
+        deck_list.push(...res.deck_list)
+        best_deck_num = deck_list.length
+    } else {
+        console.log('双服务器模式')
+        var bg = chrome.extension.getBackgroundPage();
+        var url = 'http://47.98.187.217/winrate/?rank_range=BRONZE_THROUGH_GOLD&format=json&create_time='+dateFormat("YYYY-mm-dd", new Date())
+        $('#best_deck_info').text('开始获取需要更新的卡组(请耐心等待)...')
+        var result = await getBestDeck(url)
+        deck_list.push(...result.deck_list)
+        while (result.next_url) {
+            result = await getBestDeck(result.next_url)
+            deck_list.push(...result.deck_list)
+        }
+        best_deck_num = deck_list.length
     }
-    best_deck_num = deck_list.length
     $('#best_deck_info').text('需要处理的卡组共'+best_deck_num+'个, 开始处理..')
     // bg.temp_deck_list = deck_list
     sendMessageToBackground({msg: BG_MSG_ID.MSG_ANALYSIS_BEST_DECKS, payload:deck_list}, function(response) {
@@ -445,6 +530,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
     time_frame = localStorage['time_frame']
     switch(request.msg) {
         case MSG_ID.MSG_ANALYSIS_DECKS:
+        case MSG_ID.MSG_ANALYSIS_DECKS_V2:
         case MSG_ID.MSG_ANALYSIS_TRENDING: {
             var deck_list = bg.getTempDeckList();
             var current_mode = bg.current_mode
@@ -483,12 +569,12 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
                         if (current_mode == MODE_ID.MODE_BEST_DECKS) {
                             current_num += 1
                             $('#best_deck_info').text('正在解析：'+current_num+'/'+best_deck_num+', '+deck_list[i].deck_name)
-                        } else if (current_mode == MODE_ID.MODE_DECKS) {
+                        } else if (current_mode == MODE_ID.MODE_DECKS && request.msg == MSG_ID.MSG_ANALYSIS_DECKS) {
                             var text = $('#deck_info').text().split(' ')[0]
                             $('#deck_info').text(text+' 开始解析('+(i+1)+'/'+deck_list.length+')-'+deck_list[i].deck_name)
                         }
                         getCurrentTabId(tabId => {
-                            console.log('打开卡组页:', i, deck_list[i])
+                            console.log('打开卡组页:', i, deck_list[i].url)
                             chrome.tabs.update(tabId, {url: deck_list[i].url})
                         })
                         return
@@ -529,15 +615,30 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
         break;
         case POP_MSG_ID.MSG_OPEN_MULLIGAN_PAGE: {
             var mode = 'RANKED_STANDARD'
-            if (rank_mode == 'Wild') {
+            if (rank_mode == 'Wild' || rank_mode == 'RANKED_WILD') {
                 mode = 'RANKED_WILD'
-            } else if (rank_mode == 'Classic') {
-                mode = 'RANKED_CLASSIC'
+            } else if (rank_mode == 'Twist' || rank_mode == 'RANKED_TWIST') {
+                mode = 'RANKED_TWIST'
             }
-            var time_range_str = localStorage['time_frame'] == 'CURRENT_PATCH'?'&TimeRange='+localStorage['time_frame']:''
-            time_range_str = localStorage['time_frame'] == 'CURRENT_EXPANSION'?'&TimeRange='+localStorage['time_frame']:time_range_str
+            var time_range_str = ''
+            // time_range_str = '&time_range=CURRENT_SEASON'
+            // time_range_str = '&time_range=CURRENT_PATCH'
+            // var time_range_str = '&time_range=LAST_30_DAYS'
+            if (mode == 'RANKED_TWIST') {
+                time_range_str = '&time_range=CURRENT_SEASON'
+            } else {
+                // 临时修改mulligan时间段
+                // time_range_str = '&time_range=CURRENT_PATCH'
+                // time_range_str = '&time_range=LAST_30_DAYS'
+                time_range_str = '&time_range=CURRENT_EXPANSION'
+            }
+            time_range_str = localStorage['time_frame'] == 'LAST_30_DAYS'?'&time_range='+localStorage['time_frame']:time_range_str
+            time_range_str = localStorage['time_frame'] == 'CURRENT_EXPANSION'?'&time_range='+localStorage['time_frame']:time_range_str
+            console.log('aaaa', time_range_str, localStorage['time_frame'])
+            // 临时修改为青铜黄金分段
             // deck_rank_range = 'BRONZE_THROUGH_GOLD'
-            var url = 'https://hsreplay.net/analytics/query/single_deck_mulligan_guide_v2/?GameType='+mode+'&LeagueRankRange='+deck_rank_range+'&Region=ALL&PlayerInitiative=ALL&deck_id='+request.payload.deck_id+time_range_str
+            // var url = 'https://hsreplay.net/analytics/query/single_deck_mulligan_guide_v2/?GameType='+mode+'&LeagueRankRange='+deck_rank_range+'&Region=ALL&PlayerInitiative=ALL&deck_id='+request.payload.deck_id+time_range_str
+            var url = 'https://hsreplay.net/api/v1/mulligan/?format=json&game_type_filter='+mode+'&league_rank_range='+deck_rank_range+'&player_initiative=ALL&shortid='+request.payload.deck_id+time_range_str
             console.log('yf--------------------准备打开mulligan页面', url)
             getCurrentTabId(tabId => {
                 console.log('打开mulligan页:', tabId, request)
@@ -549,18 +650,22 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
             var rank_range = request.payload.rank_range
             var meta_info = bg.meta_info
             console.log('rank_range:', rank_range, request.payload)
+            // 配合background.js 114行代码，调整取用哪个分段的数据作为meta的样本
+            // 是青铜-黄金则跳转并抓取详细数据
             if (rank_range == 'BRONZE_THROUGH_GOLD') {
-                // 是青铜-黄金则跳转并抓取详细数据
+            // if (rank_range == 'LEGEND') {
                 var list_array = meta_info.list
                 for (var faction in list_array) {
                     var faction_list = list_array[faction]
                     for (var i=0; i<faction_list.length; i++) {
                         var item = faction_list[i]
                         if (!item.checked && item.href!='') {
+                            // 临时改为最近7天的数据，新版本需要改回默认
+                            // var url = 'https://hsreplay.net'+item.href+'#rankRange='+deck_rank_range + '&timeRange=LAST_7_DAYS'
                             // meta卡组模板使用钻石-传说分段或者青铜-黄金分段，版本初期因数据不足需要切换为低分段
-                            var url = 'https://hsreplay.net'+item.href+'#rankRange=DIAMOND_THROUGH_LEGEND'
                             // var url = 'https://hsreplay.net'+item.href+'#rankRange=BRONZE_THROUGH_GOLD'
-                            console.log('准备打开archetype页面aa', url)
+                            var url = 'https://hsreplay.net'+item.href+'#rankRange='+deck_rank_range
+                            console.log('准备打开archetype页面', url)
                             var archetype_name = item.href.split('/')
                             archetype_name = archetype_name[archetype_name.length-1]
                             $('#meta_info').text('解析卡组模板（青铜-黄金）：'+(i+1)+'/'+faction_list.length+' '+archetype_name)
@@ -654,10 +759,14 @@ $('#clear_cache').click(() => {
 
 $('input[name="time_range"]').click(() => {
     var objs = $("input[name='time_range']")
-    console.log('aaa', objs, objs[0].checked, objs[1].checked, objs[2].checked, objs[2].value)
     for (let i in objs) {
         if (objs[i].checked) {
             localStorage['time_frame']=time_range_array[i]
         }
     }
+})
+
+$('input[name="singleServerMode"]').click(() => {
+    var objs = $("input[name='singleServerMode']")
+    localStorage['singleServerMode']=objs[0].checked
 })

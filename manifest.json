@@ -35,7 +35,9 @@
 		"notifications", 
 		"webRequest", 
 		"webRequestBlocking",
+		"activeTab",
 		"storage", 
+		"runtime",
 		"http://*/*", 
 		"https://*/*" 
 	]

@@ -37,7 +37,8 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
     var res_msg
     console.log('当前模式:', current_mode)
     switch(msg) {
-        case MSG_ID.MSG_ANALYSIS_DECKS: {
+        case MSG_ID.MSG_ANALYSIS_DECKS: 
+        case MSG_ID.MSG_ANALYSIS_DECKS_V2: {
             temp_deck_list = payload
             res_msg = temp_deck_list
             if (current_mode == MODE_ID.MODE_BEST_DECKS) {
@@ -89,7 +90,7 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
         case BG_MSG_ID.MSG_META_PAGE_LOADED: {
             for (var item of meta_list_rank_range_array) {
                 if (!item.checked) {
-                    console.log('111 BG_MSG_ID.MSG_META_PAGE_LOADED， 通知content-script解析页面：', item)
+                    console.log('BG_MSG_ID.MSG_META_PAGE_LOADED， 通知content-script解析页面：', item)
                     item.checked = true
                     sendMessageToPopup({
                         msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, 
@@ -108,6 +109,7 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
             res_msg = meta_info
             current_mode = MODE_ID.MODE_META_BY_CLASS_ALL
             console.log('MSG_ID.MSG_ANALYSIS_META_BY_CLASS：', meta_info)
+            // 配合popup.js 589行代码，调整取用哪个分段的数据作为meta的样本
             if (meta_info.rank_range != 'BRONZE_THROUGH_GOLD') {
                 for(var faction in meta_info.list) {
                     var temp_list = meta_info.list[faction]
@@ -119,14 +121,13 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
                         await updateMetaArchetype(temp_list[i])
                     }
                 }
-                console.log(meta_list_rank_range_array)
                 for (var item of meta_list_rank_range_array) {
                     if (!item.checked) {
-                        console.log('222 MSG_ID.MSG_ANALYSIS_META_BY_CLASS, 通知content-script解析页面：', item.range, item)
+                        console.log('MSG_ID.MSG_ANALYSIS_META_BY_CLASS, 通知content-script解析页面：', item.range, item)
                         item.checked = true
                         sendMessageToPopup({msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, payload: {
                             mode: current_mode, 
-                            text: '准备解析 '+rank_range_objs[item.rank]+' 分段数据'}
+                            text: '准备解析 '+rank_range_objs[item.range]+' 分段数据'}
                         })
                         sendMessageToContentScript1({msg: CS_MSG_ID.MSG_ANALYSIS_META_BY_CLASS, payload: {range: item.range, faction: meta_filterd_faction}})
                         return
@@ -155,20 +156,36 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
         break;
         case BG_MSG_ID.MSG_UPDATE_DECK: {
             console.log('后台消息BG_MSG_ID.MSG_UPDATE_DECK:', temp_deck_list, payload)
+            
             for (var i=0; i<temp_deck_list.length; i++) {
                 if (temp_deck_list[i].deck_id === payload.deck_id) {
+                    // 2024/10/14 部分三王子卡组无法正常加载
+                    console.log('BG_MSG_ID.MSG_UPDATE_DECK deck_name:', payload.deck_name)
+                    if (payload.deck_name == 'invalid') {
+                        temp_deck_list[i].handled_flag = true
+                        if (current_mode == MODE_ID.MODE_TRENDING) {
+                            sendMessageToPopup({msg: MSG_ID.MSG_ANALYSIS_TRENDING, payload: temp_deck_list[i]})
+                        } else if (current_mode == MODE_ID.MODE_DECKS || current_mode == MODE_ID.MODE_BEST_DECKS) {
+                            sendMessageToPopup({msg: MSG_ID.MSG_ANALYSIS_DECKS, payload: temp_deck_list[i]})
+                        }
+                        res_msg = temp_deck_list
+                        continue
+                    }
                     if (temp_deck_list[i].deck_name != payload.deck_name) {
-                        if (temp_deck_list[i].deck_name.indexOf('GLOBAL')>=0) {
+                        if (temp_deck_list[i].hasOwnProperty('deck_name') == false || temp_deck_list[i].deck_name.indexOf('GLOBAL')>=0) {
                             temp_deck_list[i].deck_name = payload.deck_name
                         }
                     }
                     temp_deck_list[i].handled_flag = true
+                    temp_deck_list[i].deck_code = payload.deck_code
                     temp_deck_list[i].real_game_count = payload.real_game_count
                     temp_deck_list[i].card_list = payload.card_list
+                    temp_deck_list[i].sideboards = payload.sideboards
                     temp_deck_list[i].turns = payload.turns
                     temp_deck_list[i].real_win_rate = payload.real_win_rate
                     temp_deck_list[i].faction_win_rate = payload.faction_win_rate
                     temp_deck_list[i].mode = payload.mode
+                    temp_deck_list[i].matchups = payload.matchups
                     temp_deck_list[i].last_30_days = payload.last_30_days
                     temp_deck_list[i].create_time = dateFormat("YYYY-mm-dd", new Date())
                     if (!temp_deck_list[i].dust_cost) {
@@ -223,17 +240,23 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
             for (var item of meta_info.list[payload.faction]) {
                 if (item.archetype == payload.archetype) {
                     item.checked = true
+                    var singleServerMode = localStorage['singleServerMode']
+                    if (singleServerMode == 'true') {
+                    	await updateMetaArchetype(item)
+                    }
+
                     Object.assign(item, payload)
-                    console.log('更新meta信息:', item, meta_info)
-                    var res = await getMetaData({faction: item.faction, archetype: item.archetype, 
+                    console.log('更新meta信息:', item, meta_info, payload)
+                    
+                    var res = await getMetaDetail({faction: item.faction, archetype: item.archetype, 
                                                 rank_range:item.rank_range, create_time: dateFormat("YYYY-mm-dd", new Date())})
                     if(res.count) {
                         console.log('meta已存在，准备更新！')
-                        res = await updateMetaData(res.results[0].id, item)
+                        res = await updateMetaDetail(res.results[0].id, item)
                         console.log('meta更新完毕:', item.archetype)
                     } else {
                         console.log('meta不存在，准备添加！')
-                        res = await addMetaData(item)
+                        res = await addMetaDetail(item)
                         console.log('meta添加完毕:', item.archetype)
                     }
                     sendMessageToPopup({msg: MSG_ID.MSG_ANALYSIS_META_BY_CLASS, payload: {rank_range: meta_info.rank_range}})
@@ -244,7 +267,6 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
         case BG_MSG_ID.MSG_ANALYSIS_TIER_END: {
             var tier_list = payload.list
             total_tier_list.push({range: payload.range, list: tier_list})
-            console.log('total_tier_list:',total_tier_list, payload)
             for (var item of tier_list_rank_range_array) {
                 if (item.range == payload.range) {
                     item.checked = true
@@ -291,7 +313,6 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
         break;
         case BG_MSG_ID.MSG_UPLOAD_RANK_DATA: {
             var rank_list = payload
-            console.log('aa', rank_list)
             for (var i=0; i<rank_list.length; i++) {
                 var item = rank_list[i]
                 var str = (i+1)+'/'+rank_list.length
@@ -409,23 +430,23 @@ async function updateTrendingDeck(deck) {
 }
 
 async function updateDecks(deck) {
-    console.log('上传更新卡组！！！')
-    var res = await getDeckDetail({deck_id: deck.deck_id})
+    console.log('上传更新卡组：', deck.deck_id, deck.mode, deck)
+    var res = await getDeckDetail({deck_id: deck.deck_id, deck_mode: deck.mode})
     if(res.count) {
         // update
         console.log('卡组已存在，准备更新！')
-        res = await updateDeck(res.results[0].id, deck)
+        res = await updateDeck(res.results[0].id, res.table_id, deck)
         console.log('更新decks卡组完毕:', deck.deck_name, deck.deck_id)
     } else {
         // insert
         console.log('卡组不存在，准备添加！')
-        res = await addDeck(deck)
+        res = await addDeck(res.table_id, deck)
         console.log('添加decks卡组完毕:', deck.deck_name, deck.deck_id)
     }
 }
 
 async function updateMetaArchetype(item) {
-    console.log('上传更新卡组！！！')
+    console.log('上传更新卡组！！！', item.rank_range, item.archetype)
     var res = await getMetaData({
         faction: item.faction, 
         archetype: item.archetype, 
@@ -434,100 +455,161 @@ async function updateMetaArchetype(item) {
     if(res.count) {
         // update
         console.log('meta已存在，准备更新！')
-        res = await updateMetaData(res.results[0].id, item)
+        await updateMetaData(res.results[0].id, item)
         console.log('meta更新完毕:', item.archetype)
     } else {
         // insert
         console.log('meta不存在，准备添加！')
-        res = await addMetaData(item)
+        await addMetaData(item)
         console.log('meta添加完毕:', item.archetype)
     }
 }
-function updateMetaArchetype1(item) {
-    return new Promise(resolve => {
-        getMetaData({
-            faction: item.faction, 
-            archetype: item.archetype, 
-            rank_range:item.rank_range, 
-            create_time: dateFormat("YYYY-mm-dd", new Date())
-        }).then(res => {
-            if(res.count) {
-                console.log('meta已存在，准备更新！')
-                updateMetaData(res.results[0].id, item).then(res => {
-                    console.log('meta更新完毕:', item.archetype)
-                    resolve(res)
-                })
-            } else {
-                console.log('meta不存在，准备添加！')
-                addMetaData(item).then(res => {
-                    console.log('meta添加完毕:', item.archetype)
-                    resolve(res)
-                })
-            }
-        })
-    })
-}
 
-function handleTierListItem(range, obj, text) {
-    return new Promise(resolve => {
-        var popularity1 = 0
-        var game_count = 0
+async function handleTierListItem(range, obj, text) {
+    // 发送消息给popup更新信息
+    sendMessageToPopup({msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, payload: {
+        mode: current_mode, 
+        text: text+' 获取meta信息'
+    }});
+    // 获取meta数据
+    const meta = await getMetaData({
+        faction: obj.faction, 
+        archetype: obj.archetype_name,
+        rank_range: range, 
+        create_time: dateFormat("YYYY-mm-dd", new Date())
+    });
+    let popularity1 = 0;
+    let game_count = 0;
+    if (meta.count > 0) {
+        const meta_detail = meta.results[0];
+        popularity1 = parseFloat(meta_detail.popularity);
+        game_count = parseInt(meta_detail.games);
+    }
+    const data = {
+        'tier': firstUpperCase(obj.tier),
+        'archetype_name': obj.archetype_name,
+        'faction': obj.faction,
+        'win_rate': obj.win_rate,
+        'popularity1': popularity1,
+        'game_count': game_count,
+        'rank_range': range,
+        'update_time': dateFormat("YYYY-mm-dd", new Date())
+    };
+    // 发送消息给popup更新信息
+    sendMessageToPopup({msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, payload: {
+        mode: current_mode, 
+        text: text+' 检查是否存在'
+    }});
+    // 检查archetype是否存在
+    const archetype = await getArchetype({archetype_name: obj.archetype_name, 
+        rank_range: range, update_time:  dateFormat("YYYY-mm-dd", new Date()) });
+    if (archetype.count) {
+        console.log('archetype已存在，准备更新！');
+        // 发送消息给popup更新信息
         sendMessageToPopup({msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, payload: {
             mode: current_mode, 
-            text: text+' 获取meta信息'
-        }})
-        getMetaData({
-            faction: obj.faction, 
-            archetype: obj.archetype_name,
-            rank_range: range, 
-            create_time: dateFormat("YYYY-mm-dd", new Date())
-        }).then(async meta => {
-            if (meta.count>0) {
-                var meta_detail = meta.results[0]
-                popularity1 = parseFloat(meta_detail.popularity)
-                game_count = parseInt(meta_detail.games)
-            }
-            var data = {
-                'tier': firstUpperCase(obj.tier),
-                'archetype_name': obj.archetype_name,
-                'faction': obj.faction,
-                'win_rate': obj.win_rate,
-                'popularity1': popularity1,
-                'game_count': game_count,
-                'rank_range': range,
-                'update_time': dateFormat("YYYY-mm-dd HH:MM:SS", new Date())
-            }
-            sendMessageToPopup({msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, payload: {
-                mode: current_mode, 
-                text: text+' 检查是否存在'
-            }})
-            var archetype = await getArchetype({archetype_name: obj.archetype_name, 
-                rank_range: range, update_time:  dateFormat("YYYY-mm-dd", new Date()) })
-            if (archetype.count) {
-                console.log('archetype已存在，准备更新！')
-                sendMessageToPopup({msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, payload: {
-                    mode: current_mode, 
-                    text: text+' 已存在，开始更新！'
-                }})
-                updateArchetype(archetype.results[0].id, data).then(res => {
-                    console.log('archetype更新完毕:', obj.archetype_name)
-                    resolve(res)
-                })
-                // res = await updateArchetype(archetype.results[0].id, data)
-                // console.log('archetype更新完毕:', obj.archetype_name)
-            } else {
-                console.log('archetype不存在，准备添加！')
-                sendMessageToPopup({msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, payload: {
-                    mode: current_mode, 
-                    text: text+' 不存在，开始添加！'
-                }})
-                addArchetype(data).then(res => {
-                    console.log('archetype添加完毕:', obj.archetype_name)
-                    resolve(res)
-                })
-                // res = await addArchetype(data)
-                // console.log('archetype添加完毕:', obj.archetype_name)
-            }
-        })
-    })
+            text: text+' 已存在，开始更新！'
+        }});
+        const res = await updateArchetype(archetype.results[0].id, data);
+        console.log('archetype更新完毕:', obj.archetype_name);
+        return res;
+    } else {
+        console.log('archetype不存在，准备添加！');
+        // 发送消息给popup更新信息
+        sendMessageToPopup({msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, payload: {
+            mode: current_mode, 
+            text: text+' 不存在，开始添加！'
+        }});
+        const res = await addArchetype(data);
+        console.log('archetype添加完毕:', obj.archetype_name);
+        return res;
+    }
 }
+// function updateMetaArchetype1(item) {
+//     return new Promise(resolve => {
+//         getMetaData({
+//             faction: item.faction, 
+//             archetype: item.archetype, 
+//             rank_range:item.rank_range, 
+//             create_time: dateFormat("YYYY-mm-dd", new Date())
+//         }).then(res => {
+//             if(res.count) {
+//                 console.log('meta已存在，准备更新！')
+//                 updateMetaData(res.results[0].id, item).then(res => {
+//                     console.log('meta更新完毕:', item.archetype)
+//                     resolve(res)
+//                 })
+//             } else {
+//                 console.log('meta不存在，准备添加！')
+//                 addMetaData(item).then(res => {
+//                     console.log('meta添加完毕:', item.archetype)
+//                     resolve(res)
+//                 })
+//             }
+//         })
+//     })
+// }
+
+// function handleTierListItem(range, obj, text) {
+//     return new Promise(resolve => {
+//         var popularity1 = 0
+//         var game_count = 0
+//         sendMessageToPopup({msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, payload: {
+//             mode: current_mode, 
+//             text: text+' 获取meta信息'
+//         }})
+//         getMetaData({
+//             faction: obj.faction, 
+//             archetype: obj.archetype_name,
+//             rank_range: range, 
+//             create_time: dateFormat("YYYY-mm-dd", new Date())
+//         }).then(async meta => {
+//             if (meta.count>0) {
+//                 var meta_detail = meta.results[0]
+//                 popularity1 = parseFloat(meta_detail.popularity)
+//                 game_count = parseInt(meta_detail.games)
+//             }
+//             var data = {
+//                 'tier': firstUpperCase(obj.tier),
+//                 'archetype_name': obj.archetype_name,
+//                 'faction': obj.faction,
+//                 'win_rate': obj.win_rate,
+//                 'popularity1': popularity1,
+//                 'game_count': game_count,
+//                 'rank_range': range,
+//                 'update_time': dateFormat("YYYY-mm-dd", new Date())
+//             }
+//             sendMessageToPopup({msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, payload: {
+//                 mode: current_mode, 
+//                 text: text+' 检查是否存在'
+//             }})
+//             var archetype = await getArchetype({archetype_name: obj.archetype_name, 
+//                 rank_range: range, update_time:  dateFormat("YYYY-mm-dd", new Date()) })
+//             if (archetype.count) {
+//                 console.log('archetype已存在，准备更新！')
+//                 sendMessageToPopup({msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, payload: {
+//                     mode: current_mode, 
+//                     text: text+' 已存在，开始更新！'
+//                 }})
+//                 updateArchetype(archetype.results[0].id, data).then(res => {
+//                     console.log('archetype更新完毕:', obj.archetype_name)
+//                     resolve(res)
+//                 })
+//                 // res = await updateArchetype(archetype.results[0].id, data)
+//                 // console.log('archetype更新完毕:', obj.archetype_name)
+//             } else {
+//                 console.log('archetype不存在，准备添加！')
+//                 sendMessageToPopup({msg: POP_MSG_ID.MSG_UPDATE_INFO_TEXT, payload: {
+//                     mode: current_mode, 
+//                     text: text+' 不存在，开始添加！'
+//                 }})
+//                 addArchetype(data).then(res => {
+//                     console.log('archetype添加完毕:', obj.archetype_name)
+//                     resolve(res)
+//                 })
+//                 // res = await addArchetype(data)
+//                 // console.log('archetype添加完毕:', obj.archetype_name)
+//             }
+//         })
+//     })
+// }

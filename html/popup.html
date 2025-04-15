@@ -3,38 +3,134 @@
 <head>
 	<meta charset="utf-8"/>
 	<title>popup</title>
+    
+    <style type="text/css">
+        p {
+            margin: 0;
+        }
+        .button-group {
+            margin: 20px 0; 
+        }
+        button {
+            height: 24px;
+            margin-right: 24px;
+        }
+        .flex-checkbox {
+            display: flex;
+            /* justify-content: space-around; */
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 20px 0; 
+        }
+        .faction-block {
+            width: 20%;
+        }
+        /* 开关按钮样式 */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+            margin-right: 10px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+
+        input:checked + .slider:before {
+            -webkit-transform: translateX(16px);
+            -ms-transform: translateX(16px);
+            transform: translateX(16px);
+        }
+
+        /* Rounded sliders */
+        .slider.round {
+            border-radius: 17px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+        /* 新增样式，使开关按钮和文字垂直居中 */
+       .switch-group {
+            display: flex;
+            align-items: center;
+            margin-left: 3px;
+        }
+    </style>
 </head>
-<style type="text/css">
-    p {
-        margin: 0;
-    }
-    .button-group {
-        margin: 20px 0; 
-    }
-    button {
-        height: 24px;
-        margin-right: 24px;
-    }
-    .flex-checkbox {
-        display: flex;
-        /* justify-content: space-around; */
-        flex-wrap: wrap;
-        align-items: center
-    }
-    .faction-block {
-        width: 20%;
-    }
-</style>
 <body style="width:500px;min-height:100px;">
     <h1>HSReplay页面解析</h1>
+    <!-- 添加开关按钮 -->
+     <div class="switch-group">
+        <label class="switch">
+            <input type="checkbox" id="single-server-mode" name="singleServerMode">
+            <span class="slider round"></span>
+        </label>
+        <label for="single-server-mode">单服务器模式</label>
+     </div>
     <div class="flex-checkbox">
-        <button id='clear_cache'>清除缓存</button>
-        <div id="time-frame">
-            <input type="radio" name='time_range' value='NONE' checked>默认
-            <input type="radio" name='time_range' value='LAST_7_DAYS'>最近7天
-            <input type="radio" name='time_range' value='LAST_30_DAYS'>最近30天
-            <input type="radio" name='time_range' value='CURRENT_EXPANSION'>当前版本
-            <input type="radio" name='time_range' value='CURRENT_PATCH'>当前补丁
+        <!-- <button id='clear_cache'>清除缓存</button> -->
+        <div id="time-frame" style="display: flex; flex-wrap: wrap;">
+            <div style="width: 25%;">
+                <input type="radio" name='time_range' value='NONE' checked>默认
+            </div>
+            <div style="width: 25%;">
+                <input type="radio" name='time_range' value='LAST_1_DAY'>最近1天
+            </div>
+            <div style="width: 25%;">
+                <input type="radio" name='time_range' value='LAST_3_DAYS'>最近3天
+            </div>
+            <div style="width: 25%;">
+                <input type="radio" name='time_range' value='LAST_7_DAYS'>最近7天
+            </div>
+            <div style="width: 25%;">
+                <input type="radio" name='time_range' value='LAST_30_DAYS'>最近30天
+            </div>
+            <div style="width: 25%;">
+                <input type="radio" name='time_range' value='CURRENT_EXPANSION'>当前版本
+            </div>
+            <div style="width: 25%;">
+                <input type="radio" name='time_range' value='CURRENT_PATCH'>当前补丁
+            </div>
+            <div style="width: 25%;">
+                <input type="radio" name='time_range' value='CURRENT_SEASON'>当前赛季
+            </div>
         </div>
     </div>
     <h2>职业胜率排名</h2>
@@ -71,7 +167,8 @@
         <div id="deck-mode">
             <input type="radio" name='deck-mode' value='Standard' checked>标准模式
             <input type="radio" name='deck-mode' value='Wild'>狂野模式
-            <input type="radio" name='deck-mode' value='Classic'>经典模式
+            <input type="radio" name='deck-mode' value='Twist'>幻变模式
+            <!-- <input type="radio" name='deck-mode' value='Classic'>经典模式 -->
         </div>
     </div>
     <div style="margin-bottom: 12px;">
@@ -91,6 +188,8 @@
     <div class="button-group">
         <button id="open_deck">打开Deck页面</button>
         <button id="analysis_deck_page">解析页面</button>
+        <button id="open_deck_v2">打开Deck页面V2</button>
+        <button id="analysis_deck_page_v2">解析页面V2</button>
     </div>
     
     <div>
@@ -101,6 +200,7 @@
     <div>
         <h3 style="width: 130px; margin-top: 0;">职业</h3>
         <div class="flex-checkbox" style="margin-bottom: 12px;">
+            <div class="faction-block"><input type="checkbox" name="faction" checked ='checked' id="DeathKnight" value="DeathKnight">死亡骑士</div>
             <div class="faction-block"><input type="checkbox" name="faction" checked ='checked' id="DemonHunter" value="DemonHunter">恶魔猎手</div>
             <div class="faction-block"><input type="checkbox" name="faction" checked ='checked' id="Druid" value="Druid">德鲁伊</div>
             <div class="faction-block"><input type="checkbox" name="faction" checked ='checked' id="Hunter" value="Hunter">猎人</div>
@@ -119,10 +219,10 @@
         <h3>分段</h3>
         <div style="margin-bottom: 12px;">
             <input type="checkbox" name="rank_range" checked ='checked' id="BRONZE_THROUGH_GOLD" value="BRONZE_THROUGH_GOLD">青铜-黄金
-            <input type="checkbox" name="rank_range" id="DIAMOND_FOUR_THROUGH_DIAMOND_ONE" value="DIAMOND_FOUR_THROUGH_DIAMOND_ONE">钻石4-钻石1
-            <input type="checkbox" name="rank_range" id="DIAMOND_THROUGH_LEGEND" value="DIAMOND_THROUGH_LEGEND">钻石-传说
-            <input type="checkbox" name="rank_range" id="LEGEND" value="LEGEND">传说
-            <input type="checkbox" name="rank_range" id="TOP_1000_LEGEND" value="TOP_1000_LEGEND">传说Top1000
+            <input type="checkbox" name="rank_range" checked ='checked' id="DIAMOND_FOUR_THROUGH_DIAMOND_ONE" value="DIAMOND_FOUR_THROUGH_DIAMOND_ONE">钻石4-钻石1
+            <input type="checkbox" name="rank_range" checked ='checked' id="DIAMOND_THROUGH_LEGEND" value="DIAMOND_THROUGH_LEGEND">钻石-传说
+            <input type="checkbox" name="rank_range" checked ='checked' id="LEGEND" value="LEGEND">传说
+            <input type="checkbox" name="rank_range" checked ='checked' id="TOP_1000_LEGEND" value="TOP_1000_LEGEND">传说Top1000
         </div>  
         <div style="display: flex; justify-content: space-between; flex-wrap: nowrap; margin-bottom: 12px;">
             <button id="open_winrate">打开Meta页面</button>
@@ -160,11 +260,12 @@
             <span id="tier_info" style="width: 70%; min-height: 20px;">无</span>
         </div>
     </div>
-	<script type="text/javascript" src="../js/jquery-1.8.3.js"></script>
-	<script type="text/javascript" src="../js/popup.js"></script>
-	<script type="text/javascript" src="../js/config.js"></script>
-	<script type="text/javascript" src="../js/utils.js"></script>
+	
+    <script type="text/javascript" src="../js/jquery-1.8.3.js"></script>
 	<script type="text/javascript" src="../js/iFanr.js"></script>
-	<script type="text/javascript" type="module" src="../js/http.js"></script>
+    <script type="text/javascript" src="../js/popup.js"></script>
+    <script type="text/javascript" src="../js/config.js"></script>
+	<script type="text/javascript" src="../js/utils.js"></script>
+    <script type="text/javascript" type="module" src="../js/http.js"></script>
 </body>
 </html>
