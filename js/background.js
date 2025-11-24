@@ -1,6 +1,7 @@
 console.log('hello from background!')
 var current_mode = -100 // MODE_ID.MODE_NONE保持一致
 var temp_deck_list = []
+var temp_rank_list = []
 var meta_info = {list:[], rank_range:''}
 var tier_list_rank_range_array = []
 var total_tier_list = []
@@ -59,6 +60,7 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
             current_mode = MODE_ID.MODE_BEST_DECKS
         };
         break;
+        case BG_MSG_ID.MSG_UPDATE_TIER_LIST_V2:
         case BG_MSG_ID.MSG_UPDATE_TIER_LIST: {
             total_tier_list = []
             tier_list_rank_range_array = payload
@@ -73,7 +75,8 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
                         mode: current_mode, 
                         text: '开始解析TierList数据：'+rank_range_objs[item.range]}
                     })
-                    sendMessageToContentScript1({msg: CS_MSG_ID.MSG_UPDATE_TIER_LIST, payload: item})
+                    sendMessageToContentScript1({msg: CS_MSG_ID.MSG_UPDATE_TIER_LIST_V2, payload: item})
+                    // sendMessageToContentScript1({msg: CS_MSG_ID.MSG_UPDATE_TIER_LIST, payload: item})
                     break
                 }
             }
@@ -109,8 +112,9 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
             res_msg = meta_info
             current_mode = MODE_ID.MODE_META_BY_CLASS_ALL
             console.log('MSG_ID.MSG_ANALYSIS_META_BY_CLASS：', meta_info)
-            // 配合popup.js 589行代码，调整取用哪个分段的数据作为meta的样本
+            // 配合popup.js MSG_ANALYSIS_META_BY_CLASS代码，调整取用哪个分段的数据作为meta的样本
             if (meta_info.rank_range != 'BRONZE_THROUGH_GOLD') {
+            // if (meta_info.rank_range != 'DIAMOND_THROUGH_LEGEND') {
                 for(var faction in meta_info.list) {
                     var temp_list = meta_info.list[faction]
                     for (var i=0; i<temp_list.length; i++) {
@@ -203,6 +207,7 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
                         console.log('background——>popup=========mulligan不存在，跳过', temp_deck_list[i])
                         console.log('current_mode:', current_mode)
                         if (current_mode == MODE_ID.MODE_TRENDING) {
+                            console.log('temp_deck_list[i]：', temp_deck_list[i], payload)
                             updateTrendingDeck(temp_deck_list[i])
                             sendMessageToPopup({msg: MSG_ID.MSG_ANALYSIS_TRENDING, payload: temp_deck_list[i]})
                         } else if (current_mode == MODE_ID.MODE_DECKS || current_mode == MODE_ID.MODE_BEST_DECKS) {
@@ -277,7 +282,8 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
                         mode: current_mode, 
                         text: '开始解析TierList数据：'+rank_range_objs[item.range]}
                     })
-                    sendMessageToContentScript1({msg: CS_MSG_ID.MSG_UPDATE_TIER_LIST, payload: item})
+                    sendMessageToContentScript1({msg: CS_MSG_ID.MSG_UPDATE_TIER_LIST_V2, payload: item})
+                    // sendMessageToContentScript1({msg: CS_MSG_ID.MSG_UPDATE_TIER_LIST, payload: item})
                     return
                 }
             }
@@ -311,8 +317,43 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
             res_msg = null
         };
         break;
+        case BG_MSG_ID.MSG_UPDATE_RANK_DATA_ARENA: {
+            current_mode = MODE_ID.MODE_RANK_ARENA
+            res_msg = null
+        };
+        break;
         case BG_MSG_ID.MSG_UPLOAD_RANK_DATA: {
-            var rank_list = payload
+            var rank_list = []
+            const json_data = {...payload, ...temp_rank_list}
+            console.log('json_data:', json_data)
+
+
+            const game_mode_list = [{name: 'Standard', value: 'BGT_RANKED_STANDARD'}, {name: 'Wild', value: 'BGT_RANKED_WILD'}, 
+                {name: 'Arena', value: 'BGT_ARENA'}, {name: 'Twist', value: 'BGT_RANKED_TWIST'}]
+            game_mode_list.forEach((game_mode) => {
+                var faction_data_list = json_data[game_mode['value']]
+                for ( faction in faction_data_list) {
+                    var format_faction
+                    if (faction.toUpperCase() == 'DEMONHUNTER') {
+                        format_faction = 'DemonHunter'
+                    } else if (faction.toUpperCase() == 'DEATHKNIGHT') {
+                        format_faction = 'DeathKnight'
+                    } else {
+                        format_faction = firstUpperCase(faction)
+                    }
+                    var rank_item = {
+                        'faction': format_faction,
+                        'game_type': game_mode['name'],
+                        'win_rate': faction_data_list[faction].win_rate,
+                        'date': dateFormat("YYYY-mm-dd HH:MM:SS", new Date())
+                    }
+                    console.log(rank_item)
+                    rank_list.push(rank_item)
+                }
+            })
+
+            console.log('rank_list:', rank_list)
+
             for (var i=0; i<rank_list.length; i++) {
                 var item = rank_list[i]
                 var str = (i+1)+'/'+rank_list.length
@@ -345,6 +386,11 @@ chrome.runtime.onMessage.addListener(async function(request, sender, sendRespons
                 text: '更新完毕'
             }})
             current_mode = MODE_ID.MODE_NONE
+        };
+        break;
+        case BG_MSG_ID.MSG_ASYNC_RANK_ARENA: {
+            temp_rank_list = payload
+            sendMessageToPopup({msg: POP_MSG_ID.MSG_OPEN_RANK_ARENA, payload: rank_list})
         };
         break;
         case MSG_ID.MSG_GET_TRENDING_DECKS: {

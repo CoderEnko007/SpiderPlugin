@@ -27,7 +27,7 @@ $('#open_trending').click(() => {
 })
 
 $('#analysis_trending_page').click(() => {
-    sendMessageToContentScript({msg: CS_MSG_ID.MSG_ANALYSIS_TRENDING, payload: null})
+    sendMessageToContentScript({msg: CS_MSG_ID.MSG_ANALYSIS_TRENDING_V2, payload: null})
 })
 
 var deck_start_page=0
@@ -191,6 +191,33 @@ $('#analysis_deck_page_v2').click(() => {
     sendMessageToContentScript({msg: CS_MSG_ID.MSG_ANALYSIS_DECKS_PAGE_V2,
         payload: {rank_mode: rank_mode, rank_range: deck_rank_range, include_cards: include_cards_array, start_num: deck_start_page, end_num: deck_end_page}})
 })
+
+$('#open_deck_v3').click(() => {
+    const url = 'https://hsreplay.net/api/v1/constructed/promoted_decks/?format_type=2'
+    getCurrentTabId(tabId => {
+        chrome.tabs.update(tabId, {url: url})
+    })
+})
+
+$('#analysis_deck_page_v3').click(() => {
+    var objs1 = $("input[name='deck-mode']")
+    if (objs1[1].checked) {
+        rank_mode = 'RANKED_WILD'
+    } else if (objs1[2].checked) {
+        rank_mode = 'RANKED_TWIST'
+    } else {
+        rank_mode = 'RANKED_STANDARD'
+    }
+
+    deck_start_page = $('#start_page').val()?$('#start_page').val():deck_start_page
+    deck_end_page = $('#end_page').val()?$('#end_page').val():deck_end_page
+    
+    console.log('analysis_deck_page_v2', rank_mode, rank_range, include_cards_array)
+    // 版本初期临时调整为青铜-黄金分段
+    deck_rank_range = 'BRONZE_THROUGH_GOLD'
+    sendMessageToContentScript({msg: CS_MSG_ID.MSG_ANALYSIS_DECKS_PAGE_V3,
+        payload: {rank_mode: rank_mode, rank_range: deck_rank_range, include_cards: include_cards_array, start_num: deck_start_page, end_num: deck_end_page}})
+})
 // var time_frame = 'LAST_7_DAYS'
 // var time_frame = ''
 // var time_frame = $('input[name="time_frame"]').is(":checked")?'LAST_7_DAYS':''
@@ -323,11 +350,13 @@ $('#analysis_tier_list_page').click(() => {
     }
     console.log('tier_list_rank_range_array:', tier_list_rank_range_array)
     $('#tier_info').text('准备打开TierList页面：'+rank_range_objs[tier_list_rank_range_array[0].range])
-    sendMessageToBackground({msg: BG_MSG_ID.MSG_UPDATE_TIER_LIST, payload:tier_list_rank_range_array}, function(response) {
+    sendMessageToBackground({msg: BG_MSG_ID.MSG_UPDATE_TIER_LIST_V2, payload:tier_list_rank_range_array}, function(response) {
+    // sendMessageToBackground({msg: BG_MSG_ID.MSG_UPDATE_TIER_LIST, payload:tier_list_rank_range_array}, function(response) {
         console.log('来自后台：', response)
         var msg = response.msg
         var payload = response.payload
-        if (msg == BG_MSG_ID.MSG_UPDATE_TIER_LIST) {
+        if (msg == BG_MSG_ID.MSG_UPDATE_TIER_LIST_V2) {
+        // if (msg == BG_MSG_ID.MSG_UPDATE_TIER_LIST) {
             getCurrentTabId(tabId => {
                 console.log('打开Tier List页面:', payload)
                 chrome.tabs.update(tabId, {url: url})
@@ -360,7 +389,7 @@ $('#open_tier_list').click(() => {
 })
 
 $('#open_rank_page').click(() => {
-    var url = 'https://hsreplay.net/analytics/query/player_class_performance_summary_v2/'
+    var url = 'https://hsreplay.net/analytics/query/player_class_performance_summary_v2/?LeagueRankRange=DIAMOND_THROUGH_LEGEND'
     getCurrentTabId(tabId => {
         console.log('打开Rank页面')
         chrome.tabs.update(tabId, {url: url})
@@ -368,7 +397,7 @@ $('#open_rank_page').click(() => {
 })
 
 $('#analysis_rank_page').click(() => {
-    var url = 'https://hsreplay.net/analytics/query/player_class_performance_summary_v2/'
+    var url = 'https://hsreplay.net/analytics/query/player_class_performance_summary_v2/?LeagueRankRange=DIAMOND_THROUGH_LEGEND'
     $('#rank_info').text('打开Rank页面，准备解析')
     getCurrentTabId(tabId => {
         console.log('打开Rank页面')
@@ -385,12 +414,21 @@ $('#trending_webhook').click(async () => {
 })
 
 $('#rank_webhook').click(async () => {
-    var webhook = 'https://cloud.minapp.com/oserve/v1/incoming-webhook/ndhvGONeNt'
+    var singleServerMode = localStorage['singleServerMode']
+    if (singleServerMode == 'true') {
+        // 单服务器模式，把数据同步到职业胜率图表的表中
+    	var webhook = 'https://cloud.minapp.com/oserve/v1/incoming-webhook/bC1DYiWRL9/'
+    } else {
+        // 双服务器模式从服务器获取数据更新到iFanr
+        var webhook = 'https://cloud.minapp.com/oserve/v1/incoming-webhook/ndhvGONeNt'
+    }
+    
     fetch(webhook).then(res => res.json())
                 .then(data => console.log(data))
 })
 
 $('#rank_webhook1').click(async () => {
+    // 从iFanr1获取数去到iFanr2
     var webhook = 'https://cloud.minapp.com/oserve/v1/incoming-webhook/T1vA85AhPG'
     fetch(webhook).then(res => res.json())
                 .then(data => console.log(data))
@@ -631,6 +669,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
                 // time_range_str = '&time_range=CURRENT_PATCH'
                 // time_range_str = '&time_range=LAST_30_DAYS'
                 time_range_str = '&time_range=CURRENT_EXPANSION'
+                // time_range_str = '&time_range=LAST_7_DAYS'
             }
             time_range_str = localStorage['time_frame'] == 'LAST_30_DAYS'?'&time_range='+localStorage['time_frame']:time_range_str
             time_range_str = localStorage['time_frame'] == 'CURRENT_EXPANSION'?'&time_range='+localStorage['time_frame']:time_range_str
@@ -653,7 +692,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
             // 配合background.js 114行代码，调整取用哪个分段的数据作为meta的样本
             // 是青铜-黄金则跳转并抓取详细数据
             if (rank_range == 'BRONZE_THROUGH_GOLD') {
-            // if (rank_range == 'LEGEND') {
+            // if (rank_range == 'DIAMOND_THROUGH_LEGEND') {
                 var list_array = meta_info.list
                 for (var faction in list_array) {
                     var faction_list = list_array[faction]
@@ -662,13 +701,14 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
                         if (!item.checked && item.href!='') {
                             // 临时改为最近7天的数据，新版本需要改回默认
                             // var url = 'https://hsreplay.net'+item.href+'#rankRange='+deck_rank_range + '&timeRange=LAST_7_DAYS'
+                            // var url = 'https://hsreplay.net'+item.href+'#rankRange='+deck_rank_range + '&timeRange='+localStorage['time_frame']
                             // meta卡组模板使用钻石-传说分段或者青铜-黄金分段，版本初期因数据不足需要切换为低分段
                             // var url = 'https://hsreplay.net'+item.href+'#rankRange=BRONZE_THROUGH_GOLD'
                             var url = 'https://hsreplay.net'+item.href+'#rankRange='+deck_rank_range
                             console.log('准备打开archetype页面', url)
                             var archetype_name = item.href.split('/')
                             archetype_name = archetype_name[archetype_name.length-1]
-                            $('#meta_info').text('解析卡组模板（青铜-黄金）：'+(i+1)+'/'+faction_list.length+' '+archetype_name)
+                            $('#meta_info').text('解析卡组模板：'+(i+1)+'/'+faction_list.length+' '+archetype_name)
                             getCurrentTabId(tabId => {
                                 console.log('打开archetype页:', tabId, request)
                                 chrome.tabs.update(tabId, {url: url})
@@ -705,6 +745,18 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
             }
         };
         break;
+        case POP_MSG_ID.MSG_OPEN_RANK_ARENA: {
+            var rank_list = request.payload
+            console.log(' POP_MSG_ID.MSG_OPEN_RANK_ARENA:', rank_list)
+            var url = 'https://hsreplay.net/api/v1/arena/classes_stats/'
+
+            getCurrentTabId(tabId => {
+                chrome.tabs.update(tabId, {url: url}, function() {
+                    sendMessageToBackground({msg: BG_MSG_ID.MSG_UPDATE_RANK_DATA_ARENA, payload: null})
+                })
+            })
+        };
+        break;
         case POP_MSG_ID.MSG_UPDATE_INFO_TEXT: {
             var mode = request.payload.mode
             var text = request.payload.text
@@ -712,7 +764,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
                 $('#meta_info').text(text)
             } else if (mode == MODE_ID.MODE_TIER_LIST) {
                 $('#tier_info').text(text)
-            } else if (mode == MODE_ID.MODE_RANK) {
+            } else if (mode == MODE_ID.MODE_RANK || mode == MODE_ID.MODE_RANK_ARENA) {
                 $('#rank_info').text(text)
             } else if (mode == MODE_ID.MODE_DECKS) {
                 $('#deck_info').text(text)

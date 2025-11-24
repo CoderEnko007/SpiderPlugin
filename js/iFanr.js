@@ -376,7 +376,7 @@ async function get_meta_detail(msg) {
             "$and": [
                 {"faction": {'$eq': msg.faction}},
                 {"archetype": {'$eq': msg.archetype}},
-                {"create_time": {'$eq': msg.create_time}}
+                // {"create_time": {'$eq': msg.create_time}}
             ]
         })
     }

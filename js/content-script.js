@@ -39,7 +39,20 @@ document.addEventListener('DOMContentLoaded', async function() {
                 // 处理职业名称
                 let factionMap = {
                     'Demonhunter': 'Demon Hunter',
-                    'Deathknight': 'Death Knight'
+                    'Deathknight': 'Death Knight',
+                    'Demonhunter Deck': 'Demon Hunter',
+                    'Deathknight Deck': 'Death Knight',
+                    'Demon Hunter Deck': 'Demon Hunter',
+                    'Death Knight Deck': 'Death Knight',
+                    'Druid Deck': 'Druid',
+                    'Hunter Deck': 'Hunter',
+                    'Mage Deck': 'Mage',
+                    'Paladin Deck': 'Paladin',
+                    'Priest Deck': 'Priest',
+                    'Rogue Deck': 'Rogue',
+                    'Shaman Deck': 'Shaman',
+                    'Warlock Deck': 'Warlock',
+                    'Warrior Deck': 'Warrior'
                 };
                 deck_name = factionMap[name] || name;
 
@@ -449,36 +462,35 @@ document.addEventListener('DOMContentLoaded', async function() {
     } else if (current_mode.payload == MODE_ID.MODE_META_BY_CLASS_ALL) {
         sendMessageToBackground({msg: BG_MSG_ID.MSG_META_PAGE_LOADED, payload: null})
     } else if (current_mode.payload == MODE_ID.MODE_RANK) {
-        // var game_type = {'Standard': 2, 'Wild': 30, 'Arena': 3}
-        // var game_type = [{name: 'Standard', value: 2}, {name: 'Wild', value: 30}, 
-        //                  {name: 'Arena', value: 3}, {name: 'Duels', value: 55}, {name: 'Classic', value: 58}, {name: 'Classic', value: 63}]
         var json_str = document.querySelector('pre').textContent
         var json_data = JSON.parse(json_str).series.data
-        var rank_list = []
-        var game_mode_list = [{name: 'Standard', value: 'BGT_RANKED_STANDARD'}, {name: 'Wild', value: 'BGT_RANKED_WILD'}, 
-            {name: 'Arena', value: 'BGT_ARENA'}, {name: 'Twist', value: 'BGT_RANKED_TWIST'}]
-        game_mode_list.forEach((game_mode) => {
-            var faction_data_list = json_data[game_mode['value']]
-            for ( faction in faction_data_list) {
-                var format_faction
-                if (faction.toUpperCase() == 'DEMONHUNTER') {
-                    format_faction = 'DemonHunter'
-                } else if (faction.toUpperCase() == 'DEATHKNIGHT') {
-                    format_faction = 'DeathKnight'
-                } else {
-                    format_faction = firstUpperCase(faction)
-                }
-                var rank_item = {
-                    'faction': format_faction,
-                    'game_type': game_mode['name'],
-                    'win_rate': faction_data_list[faction].win_rate,
-                    'date': dateFormat("YYYY-mm-dd HH:MM:SS", new Date())
-                }
-                console.log(rank_item)
-                rank_list.push(rank_item)
+        sendMessageToBackground({msg: BG_MSG_ID.MSG_ASYNC_RANK_ARENA, payload: json_data})
+    } else if (current_mode.payload == MODE_ID.MODE_RANK_ARENA) {
+        var json_str = document.querySelector('pre').textContent
+        var json_data = json_data = JSON.parse(json_str).data
+        const arena_list = {}
+        const classMapping = {
+            1: "DEATHKNIGHT",
+            2: "DRUID",
+            3: "HUNTER",
+            4: "MAGE",
+            5: "PALADIN",
+            6: "PRIEST",
+            7: "ROGUE",
+            8: "SHAMAN",
+            9: "WARLOCK",
+            10: "WARRIOR",
+            14: "DEMONHUNTER"
+        }
+        json_data.forEach(item => {
+            const className = classMapping[item.deck_class];
+            if (className) {
+                arena_list[className] = {
+                    win_rate: item.win_rate
+                };
             }
         })
-        sendMessageToBackground({msg: BG_MSG_ID.MSG_UPLOAD_RANK_DATA, payload: rank_list})
+        sendMessageToBackground({msg: BG_MSG_ID.MSG_UPLOAD_RANK_DATA, payload: {'BGT_ARENA': arena_list}})
     } else {
         console.log(dateFormat("YYYY-mm-dd HH:MM:SS", new Date())+':页面未处理')
     }
@@ -505,6 +517,17 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
             }
         };
         break;
+        case CS_MSG_ID.MSG_ANALYSIS_TRENDING_V2: {
+            const listContainer = document.querySelector('#list-container')
+            const deck_list_block = listContainer?.children[0]?.children[0]?.children
+            if (deck_list_block.length) {
+                var trending_list = analysis_trending_list_page(deck_list_block, 0, deck_list_block.length)
+                sendMessageToBackground({msg: MSG_ID.MSG_ANALYSIS_TRENDING, payload: trending_list})
+            } else {
+                alert('卡组列表还未加载')
+            }
+        };
+        break;
         case CS_MSG_ID.MSG_ANALYSIS_DECKS_PAGE: {
             var objs = document.querySelectorAll('.deck-list>ul li .deck-tile');
             if (objs.length) {
@@ -520,6 +543,13 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
             var json_deck_data = JSON.parse(document.querySelectorAll('pre')[0].textContent).series.data
             
             var deck_list = analysis_deck_list_page_v2(payload.rank_mode, payload.rank_range, payload.include_cards, payload.start_num, payload.end_num, json_deck_data)
+            sendMessageToBackground({msg: MSG_ID.MSG_ANALYSIS_DECKS_V2, payload: deck_list})
+        };
+        break;
+        case CS_MSG_ID.MSG_ANALYSIS_DECKS_PAGE_V3: {
+            console.log('MSG_ANALYSIS_DECKS_PAGE_V3')
+            var json_deck_data = JSON.parse(document.querySelectorAll('pre')[0].textContent)
+            var deck_list = analysis_deck_list_page_v3(payload.rank_mode, payload.rank_range, payload.include_cards, payload.start_num, payload.end_num, json_deck_data)
             sendMessageToBackground({msg: MSG_ID.MSG_ANALYSIS_DECKS_V2, payload: deck_list})
         };
         break;
@@ -716,6 +746,79 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse)
             }, 2000)
         };
         break;
+        case CS_MSG_ID.MSG_UPDATE_TIER_LIST_V2: {
+
+        	console.log('准备解析TierList_V2', msg, payload)
+        	var rank_range = payload.range
+        	var rank_range_buttons = get_rank_range_button()
+        	var current_range_block = rank_range_buttons.filter(item => {
+        		console.log(item, item.range, rank_range)
+        		if (item.range == rank_range) {
+        			return item.block
+        		}
+        	})[0].block
+        	console.log(current_range_block)
+        	current_range_block.click()
+        	var timer_times = 0
+        	var timer = window.setInterval(function() {
+                const tabPanel = document.querySelector('[role="tabpanel"]')
+                const tier_list_block = tabPanel?.children[0]?.children[0]?.children
+        		timer_times += 1
+        		console.log('第'+timer_times+'次查看页面是否加载完毕')
+        		if (tier_list_block) {
+        			console.log('页面加载完成')
+        			clearInterval(timer)
+        			console.log(tier_list_block, tier_list_block.length)
+        			var tier_list = []
+                    var tierItems = Array.from(tier_list_block).slice(-4)
+                    // 定义tier字母到数字的映射
+                    const tierMap = {
+                        'a': 'Tier 1',
+                        'b': 'Tier 2', 
+                        'c': 'Tier 3',
+                        'd': 'Tier 4'
+                    }
+        			for (var item of tierItems) {
+        				// 通过DOM结构路径获取tier评级元素
+                        const tierHeader = item.firstElementChild
+                        const tierLetter = tierHeader?.textContent?.toLowerCase() || ''
+                        const tier = tierMap[tierLetter] || tierLetter
+                        // 获取archetype列表元素
+                        const archetypeTierBlock = item.querySelector(':scope > div:nth-child(2)')
+                        const archetypeListItems = archetypeTierBlock.querySelectorAll(':scope > li')
+                        for (var arche of archetypeListItems) {
+                            // 获取archetype名称元素
+                            var archetype_name = arche.querySelector('div > div > div > div > span').textContent
+                            var faction = archetype_name.split(' ')
+                            if (faction.length>2 && faction[faction.length-2].toLowerCase()=='demon') {
+                                faction = 'DemonHunter'
+                            } else if (faction.length>2 && faction[faction.length-2].toLowerCase()=='death') {
+                                faction = 'DeathKnight'
+                            } else {
+                                faction = faction[faction.length-1]
+                                if (faction == 'Handlock') {
+                                    faction = 'Warlock'
+                                }
+                            }
+                            var win_rate = parseFloat(arche.querySelector('div > div:nth-child(2) > span').textContent)
+                            var game_count = parseInt(arche.querySelector('div > div:nth-child(3) > span').textContent.replace(/,/g, '')) || 0;
+                            var arche_obj = {
+                                'tier': tier,
+                                'archetype_name': archetype_name,
+                                'faction': faction,
+                                'win_rate': win_rate,
+                                'rank_range': rank_range,
+                                'update_time': dateFormat("YYYY-mm-dd HH:MM:SS", new Date())
+                            }
+                            tier_list.push(arche_obj)
+                        }
+        			}
+                    console.log('bbbbb', tier_list)
+                    sendMessageToBackground({msg: BG_MSG_ID.MSG_ANALYSIS_TIER_END, payload: {range: rank_range, list: tier_list}})
+        		}
+        	}, 2000)
+        };
+        break;
         default: {
             if (sendResponse) {
                 console.log('未知消息')
@@ -740,6 +843,74 @@ function asyncSendMessageToBackground(message) {
     })
 }
 
+function analysis_trending_list_page(objs, start, end) {
+    var trending_list = []
+    for (var i=start; i<end; i++) {
+        var item = objs[i]
+        var href = item.querySelector('a').getAttribute('href')
+        var deck_id = href.match(/\/.*\/(.*)\//)[1]
+        var faction = item.querySelector('a').getAttribute('data-card-class')
+        if(faction === 'DEMONHUNTER') {
+            faction = 'DemonHunter'
+        } else if(faction === 'DEATHKNIGHT') {
+            faction = 'DeathKnight'
+        } else {
+            faction = firstUpperCase(faction)
+        }
+        var factionMap = {
+            'Demon Hunter Deck': 'Demon Hunter',
+            'Death Knight Deck': 'Death Knight',
+            'Druid Deck': 'Druid',
+            'Hunter Deck': 'Hunter',
+            'Mage Deck': 'Mage',
+            'Paladin Deck': 'Paladin',
+            'Priest Deck': 'Priest',
+            'Rogue Deck': 'Rogue',
+            'Shaman Deck': 'Shaman',
+            'Warlock Deck': 'Warlock',
+            'Warrior Deck': 'Warrior'
+        };
+        var name = item.querySelector('div > div > h3').textContent
+        var deck_name = factionMap[name] || name;
+
+        const labels = item.querySelectorAll('span')
+
+        const dust_cost = parseInt(item.querySelector('#dust-cost').textContent.replace(',',''))
+        // const dust_cost = parseInt(item.querySelector('.dust-cost').textContent.replace(',',''))
+
+        const winrateLabel = Array.from(labels).find(span => span.textContent === 'Winrate')
+        const win_rate = winrateLabel ? parseFloat(winrateLabel.nextElementSibling.textContent) : 0
+        // const win_rate = parseFloat(item.querySelector('.win-rate').textContent.replace(',',''))
+        
+        const durationLabel = Array.from(labels).find(span => span.textContent === 'Avg Duration')
+        const duration = durationLabel ? parseFloat(durationLabel.nextElementSibling.textContent) : ''
+        // const duration = parseFloat(item.querySelector('.duration').textContent.replace(',',''))
+        
+        const gamesLabel = Array.from(labels).find(span => span.textContent === 'Games')
+        const game_count = gamesLabel ? parseInt(gamesLabel.nextElementSibling.textContent.replace(',', '')) : ''
+        // const game_count = parseInt(item.querySelector('.game-count').textContent.replace(',',''))
+        
+
+        // trending卡组设置为钻石-传说分段
+        const url = 'https://hsreplay.net'+href+'&rankRange=DIAMOND_THROUGH_LEGEND&tab=overview'
+        // 临时修改为青铜分段
+        // const url = 'https://hsreplay.net'+href+'&rankRange=LEGEND&tab=overview'
+
+        trending_list.push({
+            deck_id: deck_id,
+            faction: faction,
+            url: url,
+            deck_name: deck_name,
+            dust_cost: dust_cost,
+            win_rate: win_rate,
+            duration: duration,
+            game_count: game_count,
+            handled_flag: false
+        })
+    }
+    return trending_list
+}
+
 function analysis_deck_list_page(msg, objs, start, end) {
     var deck_list = []
     console.log('analysis_deck_list_page', start, end)
@@ -756,8 +927,23 @@ function analysis_deck_list_page(msg, objs, start, end) {
         } else {
             faction = firstUpperCase(faction)
         }
-        var deck_name = item.querySelector('.row h3.deck-name').textContent
-        var dust_cost = dust_cost = parseInt(item.querySelector('.row .dust-cost').textContent.replace(',', ''))
+        var factionMap = {
+            'Demon Hunter Deck': 'Demon Hunter',
+            'Death Knight Deck': 'Death Knight',
+            'Druid Deck': 'Druid',
+            'Hunter Deck': 'Hunter',
+            'Mage Deck': 'Mage',
+            'Paladin Deck': 'Paladin',
+            'Priest Deck': 'Priest',
+            'Rogue Deck': 'Rogue',
+            'Shaman Deck': 'Shaman',
+            'Warlock Deck': 'Warlock',
+            'Warrior Deck': 'Warrior'
+        };
+        var name = item.querySelector('.row h3.deck-name').textContent
+        var deck_name = factionMap[name] || name;
+        
+        var dust_cost = parseInt(item.querySelector('.row .dust-cost').textContent.replace(',', ''))
         var win_rate = item.querySelector('.row .win-rate').textContent
         win_rate = parseFloat(win_rate.replace('%', ''))
         var duration = item.querySelector('.row .duration').textContent
@@ -773,9 +959,9 @@ function analysis_deck_list_page(msg, objs, start, end) {
         }
         // trending卡组调整为钻石-传说分段
         if (msg == CS_MSG_ID.MSG_ANALYSIS_TRENDING) {
-            // url = 'https://hsreplay.net'+href+'&rankRange=DIAMOND_THROUGH_LEGEND&tab=overview'
+            url = 'https://hsreplay.net'+href+'&rankRange=DIAMOND_THROUGH_LEGEND&tab=overview'
             // 版本初期临时调整为青铜分段
-            url = 'https://hsreplay.net'+href+'&rankRange=BRONZE_THROUGH_GOLD&tab=overview'
+            // url = 'https://hsreplay.net'+href+'&rankRange=BRONZE_THROUGH_GOLD&tab=overview'
         }
         
         deck_list.push({
@@ -850,6 +1036,45 @@ function analysis_deck_list_page_v2(game_type, rank_range, include_cards, start,
         deck_list = deck_list.slice(start, end)
     }
     console.log('deck_list_v2解析完毕', deck_list)
+    return deck_list
+}
+
+function analysis_deck_list_page_v3(game_type, rank_range, include_cards, start, end, objs) {
+    var deck_list = []
+    for (const deck of objs) {
+        // 从卡组名称中提取职业
+        const nameParts = deck.name.split(' ')
+        let faction
+        // 检查是否包含"Demon Hunter"或"Death Knight"
+        if (nameParts.some(part => part === 'Demon') && nameParts.some(part => part === 'Hunter')) {
+            faction = 'DemonHunter'
+        } else if (nameParts.some(part => part === 'Death') && nameParts.some(part => part === 'Knight')) {
+            faction = 'DeathKnight'
+        } else {
+            // 否则取最后一个单词作为职业
+            faction = firstUpperCase(nameParts[nameParts.length-1])
+        }
+
+        if (faction === 'Dh') {
+            faction = 'DemonHunter'
+        } else if (faction === 'Dk') {
+            faction = 'DeathKnight'
+        }
+        
+        deck_list.push({
+            deck_id: deck.shortid,
+            faction: faction,
+            author: deck.author,
+            url: `https://hsreplay.net/decks/${deck.shortid}/#gameType=${game_type}&rankRange=${rank_range}&tab=overview`,
+            duration: '',
+            game_count: '',
+            handled_flag: false
+        })
+    }
+    if (start>=0 && end>0 && end>start) {
+        deck_list = deck_list.slice(start, end)
+    }
+    console.log('deck_list_v3解析完毕', deck_list)
     return deck_list
 }
 
